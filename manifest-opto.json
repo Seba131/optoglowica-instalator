@@ -1,0 +1,17 @@
+{
+  "name": "Optogłowica bezprzewodowa (XIAO ESP32-C6)",
+  "version": "f318b2c (2026-11-19)",
+  "new_install_prompt_erase": true,
+  "new_install_improv_wait_time": 0,
+  "builds": [
+    {
+      "chipFamily": "ESP32-C6",
+      "parts": [
+        {
+          "path": "firmware/opto-c6.bin?v=f318b2c",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}

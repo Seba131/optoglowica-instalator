@@ -1,0 +1,17 @@
+{
+  "name": "Dongle USB optogłowicy (ESP32-S3)",
+  "version": "f318b2c (2026-11-19)",
+  "new_install_prompt_erase": true,
+  "new_install_improv_wait_time": 0,
+  "builds": [
+    {
+      "chipFamily": "ESP32-S3",
+      "parts": [
+        {
+          "path": "firmware/dongle-s3.bin?v=f318b2c",
+          "offset": 0
+        }
+      ]
+    }
+  ]
+}
