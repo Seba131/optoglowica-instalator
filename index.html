@@ -100,6 +100,7 @@
     border-radius: 999px; font-weight: 600;
   }
   .author span { color: var(--muted); font-weight: 400; }
+  .author img { width: 40px; height: 40px; border-radius: 50%; margin: -4px 0 -4px -8px; flex: none; }
 
   /* Zakładki */
   nav.tabs {
@@ -268,7 +269,7 @@
 <header>
   <h1>Bezprzewodowa optogłowica</h1>
   <p class="lead">Instalacja firmware, parowanie i diagnostyka optogłowicy (przy liczniku) i dongla USB (przy komputerze) — wszystko z przeglądarki, bez instalowania programów.</p>
-  <div class="author"><span>Autor:</span> Sebastian Piwowarski</div>
+  <div class="author"><img src="autor.webp" alt="Karykatura autora" width="40" height="40" decoding="async"><span>Autor:</span> Sebastian Piwowarski</div>
 </header>
 
 <aside class="promo" aria-label="Inny projekt autora">
@@ -673,7 +674,7 @@
   </details>
   <details>
     <summary>Głowica przy słabym akumulatorze</summary>
-    <p>Gdy przy starcie radia napięcie spadnie (prawie pusty akumulator), głowica nie restartuje się w kółko, tylko śpi: 1 minutę, przy kolejnych spadkach 2, 4, 8, 16 minut (po każdym śnie próbuje wystartować). Po podłączeniu ładowarki łącze wraca najpóźniej po czasie bieżącego snu; odłączenie i podłączenie zasilania zaczyna od razu.</p>
+    <p>Gdy przy starcie radia napięcie spadnie (prawie pusty akumulator), głowica nie restartuje się w kółko, tylko śpi: 1 minutę po pierwszym spadku, 2 minuty po drugim, a po trzecim z rzędu zasypia i budzi ją już tylko przycisk (przytrzymaj ok. 1 s) — naładuj wtedy akumulator. Podczas krótkiego snu łącze wraca po jego końcu albo po naciśnięciu przycisku; odłączenie i podłączenie zasilania zaczyna od razu.</p>
     <p class="small">Podobnie po 3 restartach z błędem z rzędu (awaria programu): głowica zasypia z budzeniem tylko przyciskiem (1 s), zamiast restartować się w kółko i rozładować akumulator. W historii dongla (<code>log</code>) widać wtedy zwykle restarty głowicy z przyczyną i na końcu utratę łącza (nie wpis o zaśnięciu); gdy błąd jest tuż po starcie, tylko utratę łącza. Przyczyna: podłącz głowicę kablem do komputera, obudź ją przyciskiem (1 s) i od razu otwórz terminal na jej porcie (port pojawia się dopiero po obudzeniu; najlepiej terminal, który sam łączy się ponownie) — log pokazuje tylko bieżące restarty (wcześniejsze nie są zapisywane), a po 3 kolejnych głowica znowu zaśnie, także z kablem.</p>
   </details>
 </section>
