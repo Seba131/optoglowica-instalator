@@ -1,0 +1,1829 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="author" content="Sebastian Piwowarski">
+<meta name="description" content="Instalacja firmware, parowanie i diagnostyka bezprzewodowej optogłowicy i dongla USB prosto z przeglądarki.">
+<title>Optogłowica — instalator</title>
+<!-- ESP Web Tools 10.4.0 (Apache 2.0) - kopia lokalna, bez zależności od unpkg.com -->
+<script type="module" src="esp-web-tools/install-button.js"></script>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --card: #ffffff;
+    --text: #1b2330;
+    --muted: #5b6676;
+    --line: #dde3eb;
+    --accent: #0b5cad;
+    --accent-text: #ffffff;
+    --accent-soft: #e6f0fb;
+    --warn-bg: #fff6e0;
+    --warn-line: #e8c46a;
+    --code-bg: #eef1f5;
+    --ok: #1f7a3d;
+    --ok-soft: #e4f4ea;
+    --bad: #b3261e;
+    --bad-soft: #fbe8e6;
+    --mid: #946200;
+    --mid-soft: #fff3d6;
+    --term-bg: #0f141b;
+    --term-text: #d7e0ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #11151b;
+      --card: #1a2029;
+      --text: #e6ebf2;
+      --muted: #9aa6b6;
+      --line: #2c3542;
+      --accent: #4c9be8;
+      --accent-text: #0b1420;
+      --accent-soft: #1b2b3e;
+      --warn-bg: #2c2516;
+      --warn-line: #7a6125;
+      --code-bg: #232b36;
+      --ok: #5cc285;
+      --ok-soft: #173024;
+      --bad: #f08a80;
+      --bad-soft: #3a1d1b;
+      --mid: #e2b85a;
+      --mid-soft: #33290f;
+      --term-bg: #0a0e13;
+      --term-text: #d7e0ea;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #11151b;
+    --card: #1a2029;
+    --text: #e6ebf2;
+    --muted: #9aa6b6;
+    --line: #2c3542;
+    --accent: #4c9be8;
+    --accent-text: #0b1420;
+    --accent-soft: #1b2b3e;
+    --warn-bg: #2c2516;
+    --warn-line: #7a6125;
+    --code-bg: #232b36;
+    --ok: #5cc285;
+    --ok-soft: #173024;
+    --bad: #f08a80;
+    --bad-soft: #3a1d1b;
+    --mid: #e2b85a;
+    --mid-soft: #33290f;
+    --term-bg: #0a0e13;
+    --term-text: #d7e0ea;
+  }
+  :root { color-scheme: light dark; }
+  :root[data-theme="light"] { color-scheme: light; }
+  * { box-sizing: border-box; }
+  a { color: var(--accent); }
+  /* Przed załadowaniem ESP Web Tools komunikaty o braku obsługi mają być ukryte. */
+  esp-web-install-button:not(:defined) [slot="unsupported"],
+  esp-web-install-button:not(:defined) [slot="not-allowed"] { display: none; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 0 16px; }
+  .promo { display: flex; gap: 8px 14px; align-items: center; flex-wrap: wrap; margin: 0 0 14px; padding: 8px 14px; background: var(--card); border: 1px solid var(--line); border-radius: 10px; font-size: .88rem; color: var(--muted); }
+  .promo a { font-weight: 600; white-space: nowrap; }
+  header { padding: 36px 0 18px; }
+  h1 { margin: 0 0 6px; font-size: clamp(1.6rem, 4vw, 2.2rem); line-height: 1.2; }
+  .lead { margin: 0; color: var(--muted); max-width: 46rem; }
+  .author {
+    display: inline-flex; align-items: center; gap: 8px;
+    margin-top: 14px; padding: 6px 14px;
+    background: var(--accent-soft); color: var(--text);
+    border-radius: 999px; font-weight: 600;
+  }
+  .author span { color: var(--muted); font-weight: 400; }
+  .author img { width: 40px; height: 40px; border-radius: 50%; margin: -4px 0 -4px -8px; flex: none; }
+
+  /* Zakładki */
+  nav.tabs {
+    position: sticky; top: 0; z-index: 5;
+    display: flex; gap: 6px; padding: 10px 0;
+    background: var(--bg); border-bottom: 1px solid var(--line);
+    overflow-x: auto;
+  }
+  nav.tabs button {
+    appearance: none; border: 1px solid var(--line); background: var(--card); color: var(--text);
+    font: inherit; font-weight: 600; padding: 9px 16px; border-radius: 999px; cursor: pointer;
+    white-space: nowrap;
+  }
+  nav.tabs button[aria-selected="true"] { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
+  section.tab { display: none; padding-top: 22px; }
+  section.tab.active { display: block; }
+
+  .req, .panel {
+    margin: 0 0 20px; padding: 16px 18px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+  }
+  .req ul { margin: 6px 0 0; padding-left: 20px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  @media (max-width: 760px) { .grid { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 22px; display: flex; flex-direction: column;
+  }
+  .card h2, .panel h2 { margin: 0 0 4px; font-size: 1.2rem; }
+  .panel h3 { margin: 18px 0 8px; font-size: 1.05rem; }
+  .chip { color: var(--muted); font-size: .9rem; margin-bottom: 14px; }
+  ol.steps { margin: 0 0 18px; padding-left: 22px; }
+  ol.steps li { margin-bottom: 8px; }
+  .actions { margin-top: auto; display: flex; flex-direction: column; gap: 10px; }
+  button.btn, .btn {
+    appearance: none; border: 0; cursor: pointer;
+    background: var(--accent); color: var(--accent-text);
+    font: inherit; font-weight: 600;
+    padding: 11px 18px; border-radius: 8px; width: 100%;
+  }
+  button.btn.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+  button.btn.danger { background: transparent; color: var(--bad); border: 1px solid var(--bad); }
+  button.btn.danger.solid { background: var(--bad); color: var(--card); }
+  button.btn:disabled { opacity: .45; cursor: default; }
+  button.btn.inline { width: auto; }
+  .status { font-size: .9rem; color: var(--muted); min-height: 1.4em; }
+  .version { font-size: .85rem; color: var(--muted); }
+  .note {
+    margin: 22px 0; padding: 14px 18px;
+    background: var(--warn-bg); border: 1px solid var(--warn-line); border-radius: 10px;
+  }
+  section.info { margin: 26px 0; }
+  section.info h2 { font-size: 1.2rem; margin: 0 0 8px; }
+  code, kbd { background: var(--code-bg); padding: 1px 6px; border-radius: 4px; font-size: .92em; font-family: ui-monospace, Consolas, monospace; }
+  details { background: var(--card); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }
+  summary { cursor: pointer; font-weight: 600; }
+  details > :last-child { margin-bottom: 0; }
+  details.more { background: none; border: 0; border-top: 1px dashed var(--line); border-radius: 0; padding: 6px 0; margin: 6px 0 8px; }
+  details.more > summary { font-weight: 500; font-size: .9rem; color: var(--muted); }
+  details.more > p { margin: 6px 0 0; }
+  table { width: 100%; border-collapse: collapse; font-size: .95rem; }
+  th, td { text-align: left; vertical-align: top; padding: 8px 10px; border-bottom: 1px solid var(--line); }
+  th { color: var(--muted); font-weight: 600; font-size: .85rem; }
+  .table-wrap { overflow-x: auto; }
+
+  /* Terminal - połączenie */
+  .conn { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
+  .conn .btn { width: auto; }
+  .pill {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px; border-radius: 999px; font-weight: 600; font-size: .92rem;
+    background: var(--code-bg); color: var(--muted);
+  }
+  .pill::before { content: ""; width: 9px; height: 9px; border-radius: 50%; background: currentColor; }
+  .pill.ok { background: var(--ok-soft); color: var(--ok); }
+  .pill.bad { background: var(--bad-soft); color: var(--bad); }
+  .pill.mid { background: var(--mid-soft); color: var(--mid); }
+  .msg { margin-top: 10px; padding: 10px 14px; border-radius: 8px; display: none; }
+  .msg.show { display: block; }
+  .msg.bad { background: var(--bad-soft); color: var(--text); border: 1px solid var(--bad); }
+  .msg.ok { background: var(--ok-soft); color: var(--text); border: 1px solid var(--ok); }
+  .msg.mid { background: var(--mid-soft); color: var(--text); border: 1px solid var(--warn-line); }
+
+  /* Kafelki stanu */
+  .tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  @media (max-width: 600px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 420px) { .tiles { grid-template-columns: 1fr; } }
+  .tile { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--bg); }
+  .tile .k { color: var(--muted); font-size: .82rem; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+  .tile .v { font-size: 1.15rem; font-weight: 700; margin-top: 2px; overflow-wrap: anywhere; }
+  .tile .s { color: var(--muted); font-size: .85rem; margin-top: 2px; min-height: 1.2em; }
+  .tile.ok { border-color: var(--ok); }
+  .tile.ok .v { color: var(--ok); }
+  .tile.bad { border-color: var(--bad); }
+  .tile.bad .v { color: var(--bad); }
+  .tile.mid { border-color: var(--warn-line); }
+  .tile.mid .v { color: var(--mid); }
+  .bar { height: 6px; border-radius: 3px; background: var(--line); margin-top: 8px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; width: 0; background: var(--muted); transition: width .3s; }
+  .tile.ok .bar > i { background: var(--ok); }
+  .tile.mid .bar > i { background: var(--mid); }
+  .tile.bad .bar > i { background: var(--bad); }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 12px; }
+  .row .btn { width: auto; }
+  .small { font-size: .88rem; color: var(--muted); }
+
+  /* Przyciski komend */
+  .cmds { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  @media (max-width: 860px) { .cmds { grid-template-columns: repeat(2, 1fr); } }
+  @media (max-width: 480px) { .cmds { grid-template-columns: 1fr; } }
+  .cmd {
+    appearance: none; text-align: left; cursor: pointer; font: inherit; color: var(--text);
+    background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+  }
+  .cmd:hover:not(:disabled) { border-color: var(--accent); }
+  .cmd:disabled { opacity: .45; cursor: default; }
+  .cmd b { display: block; }
+  .cmd span { color: var(--muted); font-size: .87rem; }
+  .cmd.primary { border-color: var(--accent); background: var(--accent-soft); }
+  .cmd.danger b { color: var(--bad); }
+
+  /* Kreator parowania */
+  .pair { display: none; margin-top: 16px; padding: 16px 18px; border-radius: 12px; border: 2px solid var(--accent); background: var(--accent-soft); }
+  .pair.show { display: block; }
+  .pair h3 { margin: 0 0 8px; }
+  .pair ol { margin: 0 0 10px; padding-left: 22px; }
+  .pair ol li { margin-bottom: 6px; }
+  .count { font-size: 2rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+  .confirm { display: none; margin-top: 12px; padding: 12px 14px; border-radius: 10px; border: 1px solid var(--bad); background: var(--bad-soft); }
+  .confirm.show { display: block; }
+
+  /* Okno terminala */
+  .term {
+    background: var(--term-bg); color: var(--term-text);
+    border-radius: 10px; padding: 12px 14px; height: 340px; overflow: auto;
+    font: 13.5px/1.45 ui-monospace, "Cascadia Mono", Consolas, monospace;
+    white-space: pre-wrap; overflow-wrap: anywhere; margin: 0;
+  }
+  .term .sys { color: #8fb4dd; }
+  .term .err { color: #f08a80; }
+  .termbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .termbar input {
+    flex: 1 1 220px; min-width: 0; font: 15px ui-monospace, Consolas, monospace;
+    padding: 10px 12px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); color: var(--text);
+  }
+  .termbar .btn { width: auto; }
+  .row select {
+    font: inherit; padding: 9px 12px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--card); color: var(--text); min-width: 0; max-width: 100%;
+  }
+  .row label { font-weight: 600; }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+  .legend span { padding: 3px 10px; border-radius: 999px; font-size: .85rem; font-weight: 600; }
+
+  footer {
+    margin-top: 40px; padding: 22px 0 32px; border-top: 1px solid var(--line);
+    color: var(--muted); font-size: .9rem;
+  }
+  footer strong { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Bezprzewodowa optogłowica</h1>
+  <p class="lead">Instalacja firmware, parowanie i diagnostyka optogłowicy (przy liczniku) i dongla USB (przy komputerze) — wszystko z przeglądarki, bez instalowania programów.</p>
+  <div class="author"><img src="autor.webp" alt="Karykatura autora" width="40" height="40" decoding="async"><span>Autor:</span> Sebastian Piwowarski</div>
+</header>
+
+<aside class="promo" aria-label="Inny projekt autora">
+  <span>📻 <strong>Radio internetowe na ESP32-S3</strong> — inny mój projekt: stacje przez WiFi, panel WWW, wyświetlacz. Wgranie z przeglądarki, jak tutaj.</span>
+  <a href="https://seba131.github.io/esp32-radio-installer/" target="_blank" rel="noopener">Instalator ESP32 Radio →</a>
+</aside>
+
+<nav class="tabs" role="tablist" aria-label="Sekcje strony">
+  <button role="tab" id="tab-install" aria-controls="sec-install" aria-selected="true">1. Instalacja</button>
+  <button role="tab" id="tab-term" aria-controls="sec-term" aria-selected="false">2. Parowanie i diagnostyka</button>
+  <button role="tab" id="tab-help" aria-controls="sec-help" aria-selected="false">3. Pomoc i diody</button>
+</nav>
+
+<!-- ============================================================ INSTALACJA -->
+<section class="tab active" id="sec-install" role="tabpanel" aria-labelledby="tab-install">
+
+<div class="req">
+  <strong>Potrzebne:</strong>
+  <ul>
+    <li>przeglądarka <strong>Google Chrome</strong> albo <strong>Microsoft Edge</strong> na komputerze,</li>
+    <li>kabel USB-C <strong>z przewodami danych</strong> (sam kabel do ładowania nie wystarczy),</li>
+    <li>podłączaj naraz tylko to urządzenie, które wgrywasz — łatwiej wtedy wybrać właściwy port,</li>
+    <li>wgrywaj <strong>zawsze oba</strong> urządzenia (głowicę i dongle) z tej samej wersji. <strong>Firmware od 25.11.2026 nie łączy się ze starszym</strong> — po tej aktualizacji zainstaluj głowicę i dongle, potem sparuj.</li>
+  </ul>
+</div>
+
+<div class="grid">
+
+  <div class="card">
+    <h2>Optogłowica</h2>
+    <div class="chip">XIAO ESP32-C6 · przy liczniku</div>
+    <ol class="steps">
+      <li><strong>Odłącz dongle od komputera</strong>, potem podłącz głowicę kablem USB-C. Śpiąca głowica nie ma portu COM — jeśli dioda nie błyska, najpierw <strong>obudź ją: przytrzymaj przycisk ok. 1 s</strong> (zielona), potem od razu podłącz kabel (przed upływem czasu czuwania — domyślnie 1 min, najkrócej 20 s); z kablem z komputera już nie zaśnie.</li>
+      <li>Kliknij <strong>Zainstaluj optogłowicę</strong> i wybierz port głowicy „USB JTAG/serial debug unit”. Lista pokazuje tylko takie porty — dongle w zwykłej pracy jest ukryty (instalator wysłałby przez niego dane do licznika). Wybór dongla zamiast głowicy jest bezpieczny: instalator przerwie z błędem, nic nie wgra.</li>
+      <li>Potwierdź instalację i poczekaj do końca (ok. 1 min). Opcja „Erase device” kasuje całą pamięć przed wgraniem — przy pierwszej instalacji zaznacz ją. Para, czas czuwania i moc nadawania głowicy kasują się przy każdej instalacji ze strony (z tą opcją i bez niej) — potem sparuj od nowa.</li>
+      <li>Odłącz i podłącz USB. Dioda głowicy co 2 s krótko błyska — głowica działa (czerwony błysk = jeszcze bez pary). Na akumulatorze, bez kabla do komputera i bez odczytu, głowica zasypia po 1 min (dioda gaśnie) — obudzisz ją, przytrzymując przycisk ok. 1 s.</li>
+    </ol>
+    <div class="actions">
+      <esp-web-install-button manifest="manifest-opto.json?v=ba9838a">
+        <button slot="activate" class="btn">Zainstaluj optogłowicę</button>
+        <span slot="unsupported" class="status">Ta przeglądarka nie obsługuje instalacji. Użyj Chrome lub Edge.</span>
+        <span slot="not-allowed" class="status">Strona musi być otwarta przez https.</span>
+      </esp-web-install-button>
+      <div class="status" id="opto-inst-status" aria-live="polite"></div>
+      <div class="version" data-manifest="manifest-opto.json">Wersja: …</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Dongle USB</h2>
+    <div class="chip">ESP32-S3 · przy komputerze</div>
+    <ol class="steps">
+      <li><strong>Dongle z wgranym już firmware:</strong> kliknij <strong>Krok 1</strong> i wybierz <strong>którykolwiek</strong> z dwóch portów „Optoglowica dongle” — oba działają (jeśli jeden jest zajęty przez inny program, wybierz drugi). Dongle sam przejdzie w tryb wgrywania i pojawi się pod nowym portem.<br>
+          <strong>Nowy, pusty dongle:</strong> zewrzyj IO0 (BOOT) do GND i podłącz USB, potem puść — Krok 1 pomiń.</li>
+      <li>Kliknij <strong>Krok 2</strong> i wybierz port „USB JTAG/serial debug unit”. Lista pokazuje tylko takie porty — gdy jest pusta, dongle nie jest w trybie wgrywania (wróć do Kroku 1). Gdy podłączona jest też głowica, a wybierzesz ją, instalator przerwie z błędem i nic nie wgra.</li>
+      <li>Po zakończeniu odłącz i podłącz USB. Dongle pojawi się w systemie jako <strong>dwa</strong> porty COM: port danych (dla programu odczytowego) i port diagnostyczny.</li>
+    </ol>
+    <div class="actions">
+      <button class="btn secondary" id="dongle-prep">Krok 1: przełącz dongle w tryb wgrywania</button>
+      <div class="status" id="dongle-prep-status" aria-live="polite"></div>
+      <esp-web-install-button manifest="manifest-dongle.json?v=ba9838a">
+        <button slot="activate" class="btn">Krok 2: zainstaluj dongle</button>
+        <span slot="unsupported" class="status">Ta przeglądarka nie obsługuje instalacji. Użyj Chrome lub Edge.</span>
+        <span slot="not-allowed" class="status">Strona musi być otwarta przez https.</span>
+      </esp-web-install-button>
+      <div class="status" id="dongle-inst-status" aria-live="polite"></div>
+      <div class="version" data-manifest="manifest-dongle.json">Wersja: …</div>
+    </div>
+  </div>
+
+</div>
+
+<label class="small" style="display:inline-flex;gap:8px;align-items:center;margin:4px 0 12px">
+  <input type="checkbox" id="inst-show-all">
+  Pokaż wszystkie porty przy instalacji (zaawansowane — tylko gdy urządzenia nie ma na liście, np. nietypowy sprzęt)
+</label>
+
+<div class="note">
+  <strong>Po instalacji trzeba sparować urządzenia.</strong> Głowica i dongle łączą się <strong>tylko ze sobą nawzajem</strong> (para zapisana w pamięci, łącze szyfrowane). Instalacja z tej strony kasuje parę i ustawienia (czas czuwania, moc, kanał) — po wgraniu przejdź do zakładki <a href="#" data-goto="tab-term">2. Parowanie i diagnostyka</a> i kliknij <strong>Sparuj z głowicą</strong>.
+</div>
+
+<section class="info">
+  <h2>Po instalacji</h2>
+  <p>Program odczytowy ustawiasz na <strong>port danych</strong> dongla — prędkość, bity danych, parzystość i bity stopu ustawione w programie dongle przekazuje do głowicy. Drugi port dongla (diagnostyczny) służy do parowania i sprawdzania stanu — obsługuje go zakładka <a href="#" data-goto="tab-term">Parowanie i diagnostyka</a>. Port USB-C głowicy służy tylko do wgrywania i logów.</p>
+  <p><strong>Timeout odpowiedzi w programie:</strong> wyraźnie dłuższy niż najdłuższa odpowiedź. Głowica przekazuje odpowiedź dopiero po jej końcu (ciszy na linii), a dłuższą niż ok. 512 B paczkami (pierwsza po odebraniu ok. 600 B; poniżej 9600 bd paczki idą co ok. 0,9–1,0 s, już od ok. 24–27 B przy 300 bd), więc liczy się czas reakcji licznika + czas nadania odpowiedzi (ok. 0,57 ms na bajt przy 19200, 1,15 ms przy 9600; 8N1 ok. 10% krócej) + kilka ms radia. Przykłady: Modbus 19200 do ok. 20 rejestrów — <strong>100 ms</strong>, 125 rejestrów — co najmniej <strong>250 ms</strong>; Modbus 9600 do ok. 20 rejestrów — <strong>200 ms</strong>, 125 rejestrów — co najmniej <strong>450 ms</strong>; DLMS 9600 do ok. 200 B — co najmniej <strong>500 ms</strong>, do ok. 350 B — <strong>650 ms</strong>, dłużej — <strong>1000 ms</strong> (timeout do pierwszych danych, do całej ramki dolicz 1,15 ms na bajt; zapas wyliczony; zmierzono tylko krótkie odpowiedzi, ok. 30 B); IEC 62056-21 przy 300 bd — co najmniej <strong>3 s</strong>; przy słabym sygnale dodaj co najmniej 300 ms (wartość orientacyjna). Dolna granica Modbusa (zmierzona na jednym liczniku, 19200 8N2): odpowiedź dociera do PC po 21–41 ms (razem z radiem), więc timeout do 30 ms daje brak odpowiedzi albo cudzą odpowiedź; najkrótszy bezpieczny timeout wyszedł 40 ms przy dobrym sygnale, ale 80 ms przy −94 dBm (przy 60 ms tylko ok. 94% odpowiedzi i 2 złe; 70 ms nie mierzono). To są dolne granice z pomiarów, nie zalecenia: przy dobrym sygnale nie mniej niż 70 ms, przy słabym nie mniej niż 80 ms; ustawiaj wartości zalecane powyżej (100 ms, a przy słabym sygnale z dodatkiem co najmniej 300 ms). Poniżej 9600 bd licz: 25 ms + bajty × 11 bitów / prędkość + zapas co najmniej 100 ms. Program, który po timeoucie nie czyści bufora wejściowego przed następnym zapytaniem, może przy zbyt krótkim timeoucie wziąć spóźnioną odpowiedź na <em>poprzednie</em> zapytanie za bieżącą — z poprawną sumą kontrolną, czyli wartość innego rejestru bez żadnego błędu. Urządzenia ograniczają to: jeśli licznik zdążył zacząć odpowiadać na poprzednie zapytanie, zanim dotarło nowe, tę odpowiedź odrzucają — kosztem tego, że przy wolnym dostarczeniu zapytania (powtórzenia radiowe albo czekanie głowicy na koniec poprzedniej odpowiedzi) dongle wstrzymuje następne o to samo opóźnienie (najwyżej 3 s), więc przy milczącym liczniku program może dostawać timeouty. Nie chroni to programu, którego timeout jest krótszy niż czas, w jakim licznik zaczyna odpowiadać (tak samo jak na kablu).</p>
+  <p class="small">Ponadto: zapytanie wysyłaj jednym zapisem; czas między znakami przy odbiorze co najmniej 1,5 s przy dobrym sygnale, 3 s przy słabym (długa odpowiedź przychodzi paczkami: od 9600 bd co 512 B, poniżej 9600 bd co ok. 0,9–1,0 s); przy utracie danych program może dostać sam początek lub sam koniec ramki, więc sprawdzaj sumę kontrolną; używaj portu danych, nie diagnostycznego; sterowanie przepływem wyłączone (bez RTS/CTS i DSR — dongle nie ustawia tych sygnałów), DTR włączony; parzystość „space” nie jest obsługiwana; prędkości 1234 nie ustawiaj nigdy (przełącza dongle w tryb wgrywania). Odczyty automatyczne (bez nikogo przy głowicy) wymagają stałego zasilania głowicy z USB komputera i czasu czuwania „nigdy” — uśpioną głowicę budzi tylko przycisk.</p>
+</section>
+
+</section>
+
+<!-- ============================================================ TERMINAL -->
+<section class="tab" id="sec-term" role="tabpanel" aria-labelledby="tab-term">
+
+<div class="panel">
+  <h2>Połączenie z donglem</h2>
+  <p class="small" style="margin:4px 0 12px">Dongle podłączony do komputera. W okienku przeglądarki wybierz port z nazwą zawierającą <strong>„Optoglowica diag”</strong> (np. „Optoglowica dongle - Optoglowica diag (COMx)”). Drugi port, „… - Optoglowica (COMx)”, to port danych dla programu odczytowego — gdyby wybrać go przez pomyłkę, strona to wykryje, nic do niego nie wyśle i poprosi o port „diag”. Jeśli nazwy na liście są ogólne (bez „diag”), wybierz którykolwiek — strona sprawdzi.</p>
+  <div class="conn">
+    <button class="btn" id="t-connect">Połącz z donglem</button>
+    <button class="btn secondary" id="t-disconnect" hidden>Rozłącz</button>
+    <span class="pill" id="t-pill">Nie połączono</span>
+  </div>
+  <div class="msg" id="t-msg" role="status" aria-live="polite"></div>
+</div>
+
+<div class="panel">
+  <h2>Stan urządzeń</h2>
+  <div class="tiles">
+    <div class="tile" id="st-pair"><div class="k">Para</div><div class="v">—</div><div class="s">po połączeniu</div></div>
+    <div class="tile" id="st-link"><div class="k">Łącze z głowicą</div><div class="v">—</div><div class="s"></div></div>
+    <div class="tile" id="st-bat"><div class="k">Bateria głowicy</div><div class="v">—</div><div class="s"></div><div class="bar"><i></i></div></div>
+    <div class="tile" id="st-rssi"><div class="k">Sygnał radiowy</div><div class="v">—</div><div class="s"></div><div class="bar"><i></i></div></div>
+    <div class="tile" id="st-temp"><div class="k">Temperatura głowicy</div><div class="v">—</div><div class="s"></div></div>
+    <div class="tile" id="st-chan"><div class="k">Kanał radiowy</div><div class="v">—</div><div class="s"></div></div>
+    <div class="tile" id="st-sleep"><div class="k">Czas czuwania</div><div class="v">—</div><div class="s"></div></div>
+    <div class="tile" id="st-restarts"><div class="k">Restarty od włączenia</div><div class="v">—</div><div class="s"></div></div>
+  </div>
+  <div class="row">
+    <button class="btn secondary inline" id="t-refresh" disabled>Odśwież stan</button>
+    <span class="small" id="st-ver">Wersje firmware: —</span>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Co chcesz zrobić?</h2>
+  <div class="cmds">
+    <button class="cmd primary" data-act="pair" disabled><b>Sparuj z głowicą</b><span>Połącz ten dongle z głowicą (30 s, przycisk na głowicy)</span></button>
+    <button class="cmd" data-cmd="rssi" disabled><b>Sprawdź sygnał</b><span>Siła sygnału od głowicy teraz</span></button>
+    <button class="cmd" data-act="mon" disabled><b id="mon-label">Śledź sygnał na żywo</b><span>Odczyt co sekundę — do ustawiania głowicy i dongla</span></button>
+    <button class="cmd" data-cmd="bat" disabled><b>Bateria głowicy</b><span>Napięcie, procent, czas pracy, temperatura i błędy głowicy</span></button>
+    <button class="cmd" data-cmd="wersja" disabled><b>Wersje firmware</b><span>Czy głowica i dongle mają tę samą wersję</span></button>
+    <button class="cmd" data-cmd="stat" disabled><b>Pełne statystyki</b><span>Wszystko o łączu: dane, powtórzenia, błędy</span></button>
+    <button class="cmd" data-cmd="log" disabled><b>Historia problemów</b><span>Przerwy łącza, restarty, błędy odczytu — z czasem „ile temu”</span></button>
+    <button class="cmd" data-cmd="temp" disabled><b>Temperatury</b><span>Głowica i dongle: teraz, min i max</span></button>
+    <button class="cmd" data-cmd="para stop" disabled><b>Przerwij parowanie</b><span>Gdy parowanie trwa, a chcesz je zakończyć</span></button>
+    <button class="cmd danger" data-act="unpair" disabled><b>Usuń parę w donglu</b><span>Rzadko potrzebne — nowe parowanie i tak zastępuje starą parę</span></button>
+    <button class="cmd" data-cmd="help" disabled><b>Lista komend</b><span>Komendy wbudowane w dongle</span></button>
+  </div>
+
+  <div class="confirm" id="unpair-confirm">
+    <strong>Na pewno usunąć parę w donglu?</strong>
+    <p class="small" style="margin:6px 0 10px">Łącze z głowicą przestanie działać do ponownego sparowania. Do połączenia z <em>inną</em> głowicą usuwanie nie jest potrzebne — wystarczy nowe parowanie.</p>
+    <div class="row" style="margin-top:0">
+      <button class="btn danger solid inline" id="unpair-yes">Tak, usuń parę</button>
+      <button class="btn secondary inline" id="unpair-no">Anuluj</button>
+    </div>
+  </div>
+
+  <div class="pair" id="pair-box">
+    <h3 id="pair-title" aria-live="polite">Parowanie — tryb parowania włączony</h3>
+    <div class="row" style="margin:0 0 10px; align-items:baseline">
+      <span class="count" id="pair-count">30</span><span class="small" id="pair-count-desc">s na naciśnięcie przycisku głowicy</span>
+    </div>
+    <ol id="pair-steps">
+      <li>Połóż głowicę <strong>obok dongla</strong> (najlepiej do 1 m).</li>
+      <li><strong>Przytrzymaj przycisk głowicy.</strong> Po ok. 3 s dioda głowicy zaświeci na <strong>niebiesko</strong> (na prototypie żółta) — wtedy <strong>puść</strong>. Jeśli głowica spała, po 1 s zaświeci na zielono — to tylko obudzenie, trzymaj dalej do niebieskiej. <em>Prototyp bez diody RGB:</em> żółta zapala się już po 1 s, jeśli głowica spała — licz 3 s od naciśnięcia i dopiero wtedy puść.</li>
+      <li>Dioda głowicy zacznie szybko migać. Po kilku sekundach pojawi się tutaj wynik.</li>
+    </ol>
+    <p class="small" style="margin:0" id="pair-warn">Nie trzymaj przycisku dłużej niż 10 s. Jeśli dioda głowicy zacznie migać bardzo szybko na czerwono, NIE naciskaj — po 5 s para zostanie (krótkie naciśnięcie w tym czasie skasowałoby parę).</p>
+    <div class="row">
+      <button class="btn secondary inline" id="pair-cancel">Przerwij parowanie</button>
+      <button class="btn secondary inline" id="pair-close" hidden>Zamknij</button>
+    </div>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Ustawienia głowicy</h2>
+  <h3 style="margin-top:8px">Czas czuwania (usypianie)</h3>
+  <details class="more"><summary>Jak działa usypianie</summary>
+    <p class="small">Głowica zasypia, żeby oszczędzać akumulator, gdy przez ustawiony <strong>czas czuwania</strong> nikt nie odczytuje licznika (program odczytowy nie wysyła zapytań i nie odbiera danych; sam nasłuch, np. SML, liczy się najwyżej 5 min). Śpiąca głowica nie odpowiada — przed odczytem <strong>obudź ją: przytrzymaj przycisk głowicy ok. 1 s</strong>. Z kablem USB podłączonym do komputera głowica nie zasypia. Ustawienie zapisuje się w głowicy i zostaje po wyłączeniu; wgranie firmware przez tę stronę przywraca 1 min. Każda minuta czuwania to szacunkowo ok. 1,5 mAh akumulatora — długi czas (np. 30 min) zużywa go wielokrotnie szybciej niż 1 min.</p>
+  </details>
+  <div class="row">
+    <label for="sleep-sel">Czas czuwania</label>
+    <select id="sleep-sel">
+      <option value="20">20 s</option>
+      <option value="30">30 s</option>
+      <option value="60" selected>1 min (domyślnie)</option>
+      <option value="120">2 min</option>
+      <option value="300">5 min</option>
+      <option value="600">10 min</option>
+      <option value="900">15 min</option>
+      <option value="1200">20 min</option>
+      <option value="1800">30 min</option>
+      <option value="0">nigdy (tylko z kablem USB z komputera)</option>
+    </select>
+    <button class="btn inline" id="sleep-save" disabled aria-label="Zapisz czas czuwania w głowicy">Zapisz w głowicy</button>
+    <span class="small" id="sleep-cur">Obecnie: —</span>
+  </div>
+  <div class="msg" id="sleep-msg" role="status" aria-live="polite"></div>
+  <details class="more"><summary>Wskazówki: czas czuwania a akumulator</summary>
+    <p class="small">Krótszy czas = dłużej na akumulatorze, ale częściej trzeba budzić głowicę. „Nigdy” — gdy odczyty mają iść automatycznie, bez nikogo przy głowicy (np. program czyta co godzinę); działa tylko przy stałym zasilaniu kablem USB z komputera — na samym akumulatorze oznacza najwyżej 30 min. Sam otwarty port programu odczytowego bez żadnego ruchu nie podtrzymuje głowicy (zaśnie po czasie czuwania); program, który tylko słucha licznika (np. SML), podtrzymuje ją najwyżej 5 min od otwarcia portu, od ostatnich danych lub parametrów portu wysłanych przez program albo od obudzenia głowicy (potem: otwórz port ponownie, a śpiącą głowicę obudź przyciskiem); śledzenie sygnału na żywo podtrzymuje ją najwyżej 10 min. <strong>Oszczędzanie akumulatora:</strong> po odczycie zamknij program i zatrzymaj śledzenie sygnału (najpierw program, potem wyjmij dongle). Na samym akumulatorze (bez kabla USB z komputerem) przy napięciu poniżej 3,3 V (dwa pomiary z rzędu) głowica mignie 5 razy na czerwono i zaśnie — naładuj akumulator.</p>
+  </details>
+
+  <h3>Moc nadawania radia</h3>
+  <details class="more"><summary>Jak działa moc nadawania</summary>
+    <p class="small">Jedno ustawienie dla <strong>obu urządzeń naraz</strong> — głowica i dongle nadają z tą samą mocą. Zwykle zostaw <strong>maksymalną</strong> (domyślnie). Niższa moc to mniej zakłóceń dla pobliskiego Wi-Fi i sprawdzian zapasu zasięgu: jeśli łącze działa dobrze przy niskiej mocy, przy maksymalnej będzie pewne. Baterii prawie nie oszczędza. Zmiana jest bezpieczna: przez chwilę oba urządzenia nadają z nową mocą, a przy <strong>obniżaniu</strong> dongle mierzy sygnał w obu kierunkach i zapisuje moc tylko wtedy, gdy jest on nie słabszy niż −75 dBm (zapas); inaczej od razu wraca poprzednia moc. Bez łącza po 30 s głowica sama wraca do poprzedniej. Gdyby zapisana niska moc później przestała wystarczać (np. zamknięta szafka), głowica i dongle po ok. 10–20 s słabego łącza albo jego braku same przechodzą <strong>awaryjnie na moc maksymalną</strong> (do uśpienia lub restartu głowicy albo ponownego zapisu mocy) — pole „Obecnie” to pokaże. W ostateczności: jeśli głowica śpi, obudź ją (przycisk 1 s, zielona, puść), potem <strong>przytrzymaj przycisk ok. 3 s</strong> — głowica zapisze moc maksymalną (dioda potem miga na niebiesko do 30 s i mignie na czerwono — to normalne: przy okazji włącza się parowanie, para zostaje; przy kanale radiowym innym niż 13 łącze wraca dopiero po końcu tego trybu, do 30 s). W trakcie parowania zmiana mocy jest odrzucana — powtórz po jego końcu. Każde udane parowanie oraz wgranie firmware przez tę stronę też przywracają moc maksymalną.</p>
+  </details>
+  <div class="row">
+    <label for="pwr-sel">Moc</label>
+    <select id="pwr-sel">
+      <option value="max" selected>maksymalna — 20 dBm (domyślnie)</option>
+      <option value="sred">średnia — 14 dBm</option>
+      <option value="nisk">niska — 8 dBm</option>
+      <option value="min">minimalna — 2 dBm</option>
+    </select>
+    <button class="btn inline" id="pwr-save" disabled aria-label="Zapisz moc nadawania w głowicy i donglu">Zapisz</button>
+    <span class="small" id="pwr-cur">Obecnie: —</span>
+  </div>
+  <div class="msg" id="pwr-msg" role="status" aria-live="polite"></div>
+
+  <h3>Kanał radiowy</h3>
+  <details class="more"><summary>Jak działa wybór kanału</summary>
+    <p class="small">Głowica i dongle łączą się na jednym kanale 2,4 GHz (1–13, domyślnie <strong>13</strong>). Zmień go, gdy łącze przerywa mimo dobrego sygnału — zwykle przez sieci Wi-Fi tuż obok. <strong>Skanuj Wi-Fi</strong> pokazuje zajętość kanałów w terminalu (łącze przerwane na ok. 2 s), <strong>Wybierz automatycznie</strong> ustawia mniej zajęty kanał (zmienia go tylko przy wyraźnie mniejszym obciążeniu). Wybór dotyczy <strong>następnego parowania</strong>: do tego czasu łącze zostaje na obecnym kanale. Potem połóż urządzenia obok siebie i kliknij <strong>Sparuj z głowicą</strong> — oba przejdą na nowy kanał.</p>
+  </details>
+  <div class="row">
+    <label for="chan-sel">Kanał</label>
+    <select id="chan-sel"><option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13" selected>13 (domyślny)</option></select>
+    <button class="btn inline" id="chan-save" disabled aria-label="Wybierz kanał radiowy na następne parowanie">Ustaw na następne parowanie</button>
+    <button class="btn secondary inline" id="chan-scan" disabled>Skanuj Wi-Fi</button>
+    <button class="btn secondary inline" id="chan-auto" disabled>Wybierz automatycznie</button>
+    <span class="small" id="chan-cur">Obecnie: —</span>
+  </div>
+  <div class="msg" id="chan-msg" role="status" aria-live="polite"></div>
+  <div class="row"><button class="btn inline" id="chan-pair" hidden>Sparuj z głowicą teraz</button></div>
+</div>
+
+<div class="panel">
+  <h2>Terminal</h2>
+  <p class="small" style="margin:4px 0 10px">Tutaj widać wszystko, co odpowiada dongle. Możesz też wpisać komendę ręcznie (strzałki ↑ ↓ — poprzednie komendy).</p>
+  <pre class="term" id="term" aria-live="off" tabindex="0" role="log" aria-label="Wyjście terminala"></pre>
+  <div class="termbar">
+    <input id="t-input" type="text" placeholder="np. stat" autocomplete="off" spellcheck="false" disabled aria-label="Komenda">
+    <button class="btn inline" id="t-send" disabled>Wyślij</button>
+    <button class="btn secondary inline" id="t-clear">Wyczyść</button>
+    <button class="btn secondary inline" id="t-copy">Kopiuj</button>
+    <button class="btn secondary inline" id="t-save">Zapisz log</button>
+  </div>
+</div>
+
+<div class="panel">
+  <h2>Komendy dongla — co robią</h2>
+  <div class="table-wrap">
+  <table>
+    <thead><tr><th>Komenda</th><th>Co pokazuje / robi</th><th>Kiedy się przydaje</th></tr></thead>
+    <tbody>
+      <tr><td><code>para</code></td><td>Włącza w donglu tryb parowania na 30 s. Na głowicy trzeba przytrzymać przycisk ok. 3 s.</td><td>Po instalacji, po wymianie głowicy lub dongla.</td></tr>
+      <tr><td><code>para stop</code></td><td>Przerywa trwający tryb parowania.</td><td>Gdy włączyłeś parowanie przez pomyłkę.</td></tr>
+      <tr><td><code>para usun</code></td><td>Kasuje parę w donglu (tylko w donglu — głowica dalej ją pamięta).</td><td>Rzadko. Do połączenia z inną głowicą wystarczy nowe parowanie.</td></tr>
+      <tr><td><code>rssi</code></td><td>Siła sygnału od głowicy: ostatnia wartość, min / średnia / max z ostatniej sekundy, oraz min i max od włączenia dongla.</td><td>Ocena zasięgu.</td></tr>
+      <tr><td><code>mon</code></td><td>Siła sygnału co sekundę. Dowolny klawisz (albo przycisk na stronie) kończy.</td><td>Szukanie najlepszego miejsca dla dongla lub głowicy.</td></tr>
+      <tr><td><code>bat</code></td><td>Stan głowicy: napięcie i procent akumulatora, sygnał widziany przez głowicę, wersja firmware głowicy, czas pracy, przyczyna ostatniego restartu, temperatura, błędy odbioru z licznika, dane utracone w radiu, spadki napięcia (brownout), licznik nieplanowanych restartów głowicy od włączenia jej zasilania (awarie, watchdogi, blokada procesora, zakłócenia zasilania, spadki napięcia, restart programowy; bez snu i USB) z powodem ostatniego snu, czas czuwania i moc nadawania.</td><td>Kontrola baterii.</td></tr>
+      <tr><td><code>stat</code></td><td>Pełne statystyki: wersja i czas pracy dongla, para, łącze, bateria, temperatury, czas czuwania i moc nadawania, liczba wpisów historii, ustawienia portu danych, przesłane bajty, powtórzenia i błędy radiowe (w tym osobna linia „odebrane BUSY od glowicy” — ile razy głowica odpowiedziała „brak miejsca”, zwykle przy wolnej prędkości portu), ostatnie parowanie.</td><td>Gdy coś nie działa — skopiuj wynik i prześlij.</td></tr>
+      <tr><td><code>raport</code></td><td><code>stat</code> i zaraz po nim <code>log</code> w jednym wydruku.</td><td>Zgłaszanie problemu — skopiuj cały wynik i prześlij.</td></tr>
+      <tr><td><code>temp</code></td><td>Temperatura dongla i głowicy: teraz oraz min i max od włączenia dongla (dla głowicy — albo od sparowania z inną głowicą).</td><td>Głowica w słońcu, w szafce albo na mrozie.</td></tr>
+      <tr><td><code>log</code></td><td>Historia zdarzeń i problemów (do 64 wpisów, najnowsze na dole): przerwy łącza, restarty głowicy i ich przyczyny, spadki napięcia, bateria krytyczna, temperatura poza normą, słaby sygnał, błędy odbioru z licznika, dane utracone w radiu, porzucone i spóźnione zapytania, inna wersja protokołu radiowego u głowicy. Czas jako „ile temu”. Powtórzenie tego samego zdarzenia najpóźniej 10 min po poprzednim dopisuje się do tego samego wpisu (×N). Zaśnięcia i obudzenia głowicy (czas czuwania) łączą się bez limitu czasu, jeśli w międzyczasie nie było innych zdarzeń; sen z przegrzania nie łączy się ze zwykłym snem. Wpis „Glowica zasnela” (z powodem: czuwanie, bateria, przegrzanie) pojawia się po potwierdzeniu snu przez głowicę; gdy łącze zerwie się po samym „zasypiam” bez potwierdzenia, jest to „Utrata lacza … raczej brak zasiegu”. Wpis „Glowica obudzona” podaje powód rozpoznanego snu (czuwanie, bateria, przegrzanie); powód także cichego snu bez zapowiedzi (spadek napięcia, restarty z błędem) widać w <code>bat</code> i <code>stat</code> jako „ostatni sen” oraz we wpisie „Restart głowicy (przyczyna: wybudzenie z uśpienia; ostatni sen: …)”.</td><td>Gdy odczyty czasem nie wychodzą — sprawdź, co się działo i kiedy.</td></tr>
+      <tr><td><code>log czysc</code></td><td>Czyści historię.</td><td>Po instalacji albo po usunięciu problemu, żeby widzieć tylko nowe zdarzenia.</td></tr>
+      <tr><td><code>czuwanie</code></td><td>Czas czuwania głowicy i za ile zaśnie. <code>czuwanie 5m</code>, <code>czuwanie 30s</code> — zmiana (od 20 s do 30 min), <code>czuwanie nigdy</code> — głowica nie usypia (tylko z kablem USB z komputera; na akumulatorze najwyżej 30 min). Potwierdzenie pojawia się, gdy głowica zapisze ustawienie; śpiąca głowica dostanie je po obudzeniu.</td><td>Dłuższa praca na akumulatorze albo głowica na stałym zasilaniu.</td></tr>
+      <tr><td><code>moc</code></td><td>Moc nadawania głowicy i dongla (jedno ustawienie dla obu). <code>moc max</code> — 20 dBm (domyślnie), <code>moc sred</code> — 14 dBm, <code>moc nisk</code> — 8 dBm, <code>moc min</code> — 2 dBm. Zmiana na próbę: przy obniżaniu moc zostaje tylko, gdy sygnał w obu kierunkach jest nie słabszy niż −75 dBm; inaczej wraca poprzednia. Działa tylko przy łączu z głowicą.</td><td>Mniej zakłóceń dla Wi-Fi obok, sprawdzenie zapasu zasięgu.</td></tr>
+      <tr><td><code>kanal</code></td><td>Kanał radiowy pary (1–13, domyślnie 13). <code>kanal skan</code> — zajętość kanałów przez sieci Wi-Fi i kanał zalecany; łącze przerwane na ok. 2 s, dlatego tylko przy zamkniętym programie odczytowym (ok. 30 s bez ruchu na porcie danych). Skan rób z donglem w miejscu jego pracy. <code>kanal auto</code> — skan i wybór zalecanego, <code>kanal 6</code> — wybór ręczny. Wybór obowiązuje dla <strong>następnego parowania</strong> (dongle pamięta go także po odłączeniu): potem <code>para</code> i przycisk głowicy 3 s (urządzenia obok siebie). Po sparowaniu oba przechodzą na nowy kanał. Parowanie zawsze odbywa się na kanale 13; oba urządzenia muszą mieć ten sam firmware; skasowanie pary (<code>para usun</code>) przywraca kanał 13 (następne parowanie pójdzie jednak na kanale wybranym wcześniej komendą <code>kanal</code>, jeśli taki czeka). <code>kanal auto</code> zmienia kanał tylko przy wyraźnie mniejszym obciążeniu (inaczej „zmiana niepotrzebna”, wcześniejszy wybór zostaje). Komenda <code>para</code> pokazuje, na jaki kanał urządzenia przejdą.</td><td>Łącze słabe mimo dobrego sygnału (dużo powtórzeń w <code>stat</code>), sieci Wi-Fi na tym samym kanale.</td></tr>
+      <tr><td><code>wersja</code> (<code>ver</code>)</td><td>Wersje firmware dongla i głowicy oraz czy są zgodne.</td><td>Po aktualizacji. „Wersje różne” albo „UWAGA: inna wersja protokolu” = wgraj oba urządzenia jeszcze raz.</td></tr>
+      <tr><td><code>help</code></td><td>Lista komend wbudowana w dongle.</td><td>—</td></tr>
+    </tbody>
+  </table>
+  </div>
+  <h3>Siła sygnału (RSSI)</h3>
+  <div class="legend">
+    <span style="background:var(--ok-soft);color:var(--ok)">powyżej −60 dBm: bardzo dobry</span>
+    <span style="background:var(--ok-soft);color:var(--ok)">−60 do −75: dobry</span>
+    <span style="background:var(--mid-soft);color:var(--mid)">−75 do −85: słaby</span>
+    <span style="background:var(--bad-soft);color:var(--bad)">poniżej −85: granica zasięgu</span>
+  </div>
+  <p class="small">Do parowania potrzebny jest silny sygnał (co najmniej −65 dBm) — dlatego urządzenia kładzie się obok siebie.</p>
+  <h3>Temperatura i historia problemów</h3>
+  <p class="small">Temperatura pochodzi z czujników wewnątrz układów głowicy i dongla, więc jest zwykle o kilka °C wyższa niż w otoczeniu. Historia zapisze ostrzeżenie, gdy głowica ma 70 °C lub więcej (gorąco szkodzi akumulatorowi) albo 0 °C lub mniej (na mrozie nie ładuj akumulatora), a dongle też 70 °C lub więcej. Kafelek na stronie robi się żółty już przy 60 °C i więcej albo 5 °C i mniej, choć wpisu w historii jeszcze wtedy nie ma. Słaby sygnał trafia do historii, gdy średnia spadnie poniżej −85 dBm.</p>
+  <p class="small"><strong>Ochrona przed przegrzaniem:</strong> gdy układ głowicy ma 85 °C lub więcej przez 3 kolejne pomiary (ok. 10–15 s), głowica sama zasypia — także z kablem USB — mignie 5 razy na magentowo (czerwony + niebieski), a budzi ją dopiero przycisk (1 s) po ostygnięciu. Jeśli układ nadal jest gorący, po ok. 15 s zaśnie znowu. Dongle pokazuje wtedy w kafelku i w komendzie <code>czuwanie</code> „PRZEGRZANIA”, a w historii (<code>log</code>) wpis „Glowica zasnela z powodu PRZEGRZANIA”. Zakres pracy płytki XIAO to −40…85 °C.</p>
+  <p class="small">Historię prowadzi dongle. Przetrwa jego restart programowy (także po błędzie programu), ale znika po odłączeniu go od zasilania (USB) i po przycisku reset, a po wgraniu nowej wersji firmware może zniknąć. Wpisy sprzed restartu dongla są oznaczone „przed restartem dongla”. Urządzenia nie znają daty, dlatego czas pokazuje „ile temu”. Odczyt temperatury i prowadzenie historii nie przeszkadzają w odczytach licznika: dane jadą przy okazji sygnału kontrolnego łącza, bez dodatkowych ramek radiowych i bez zapisu do pamięci flash.</p>
+</div>
+
+</section>
+
+<!-- ============================================================ POMOC -->
+<section class="tab" id="sec-help" role="tabpanel" aria-labelledby="tab-help">
+
+<section class="info">
+  <h2>Parowanie bez komputera (przyciskami)</h2>
+  <div class="panel">
+    <ol class="steps" style="margin:0">
+      <li>Połóż głowicę obok dongla.</li>
+      <li>Przytrzymaj przycisk <strong>PAIR</strong> dongla (na płytkach bez PAIR: BOOT). Po 3 s diody TX i RX zaświecą na stałe — <strong>puść</strong>. Diody zaczną migać naprzemiennie.<br>
+          <span class="small">BOOT wciśnięty przy podłączaniu USB włącza tryb wgrywania — naciskaj go, gdy dongle już pracuje.</span></li>
+      <li>W ciągu 30 s przytrzymaj przycisk głowicy, aż dioda zaświeci na <strong>niebiesko</strong> (ok. 3 s; zielona po 1 s = głowica tylko obudzona — trzymaj dalej) — <strong>puść</strong>. Prototyp bez diody RGB: żółta świeci już po 1 s — licz 3 s i dopiero wtedy puść.</li>
+      <li>Sukces: dioda głowicy świeci 2 s na zielono, obie diody dongla 2 s.</li>
+    </ol>
+    <p class="small" style="margin:10px 0 0">Parowanie zaczyna się dopiero po <strong>puszczeniu</strong> przycisku trzymanego 3–10 s. Krótkie naciśnięcie nic nie robi, a 10 s i dłużej to kasowanie pary — na głowicy dopiero po potwierdzeniu: po puszczeniu czerwona miga bardzo szybko i w ciągu 5 s trzeba krótko nacisnąć przycisk jeszcze raz (bez tego para zostaje).</p>
+  </div>
+</section>
+
+<section class="info">
+  <h2>Gdy coś nie działa</h2>
+  <details>
+    <summary>Parowanie: „nikt nie odpowiedział w 30 s”</summary>
+    <p>Głowica nie weszła w tryb parowania albo jest za daleko. Połóż ją obok dongla i powtórz: przytrzymaj przycisk głowicy, aż dioda zaświeci na <strong>niebiesko</strong> (ok. 3 s; zielona po 1 s = głowica tylko obudzona — trzymaj dalej), i dopiero wtedy puść. W <em>Pełnych statystykach</em> linia „Ostatnie parowanie” pokazuje, czy ramki głowicy w ogóle dochodziły (0 = głowica nie była w trybie parowania; „za słabe” = zbliż urządzenia). Jeśli jedno z urządzeń ma starszy firmware (sprzed 25.11.2026), parowanie nie uda się na żadnym kanale — zainstaluj oba.</p>
+  </details>
+  <details>
+    <summary>Parowanie: „dwa urządzenia naraz”</summary>
+    <p>W pobliżu parowało się jeszcze jedno urządzenie. Odsuń je (albo poczekaj) i powtórz.</p>
+  </details>
+  <details>
+    <summary>Para jest, ale „Łącze z głowicą: brak”</summary>
+    <p>Najczęściej głowica po prostu <strong>śpi</strong> (czas czuwania) — dioda jest wtedy zgaszona. Obudź ją: przytrzymaj przycisk ok. 1 s, aż zaświeci na zielono. Jeśli nie reaguje: głowica rozładowana albo poza zasięgiem. Jeśli głowica błyska na żółto (para jest, brak łącza), a dongle jest blisko, parowanie mogło się udać tylko po jednej stronie: sparuj jeszcze raz. Nowe parowanie zawsze zastępuje starą parę.</p>
+  </details>
+  <details>
+    <summary>Strona mówi „to port danych” albo „port zajęty”</summary>
+    <p>Dongle ma dwa porty. Kliknij <em>Połącz z donglem</em> jeszcze raz i wybierz port <strong>„Optoglowica diag”</strong>. „Port zajęty”: jeśli wybrano port danych („… - Optoglowica”), używa go program odczytowy — wybierz port „Optoglowica diag”; jeśli zajęty jest sam port „diag”, zamknij terminal (np. PuTTY), który go używa.</p>
+  </details>
+  <details>
+    <summary>Wersje firmware różne</summary>
+    <p>Głowica i dongle muszą mieć tę samą wersję. Zainstaluj oba urządzenia jeszcze raz w zakładce <a href="#" data-goto="tab-install">Instalacja</a>, potem sparuj.</p>
+    <p>Jeśli kafelek „Łącze” pokazuje <strong>„inna wersja”</strong> (w <code>stat</code> linia „UWAGA: inna wersja protokolu…”), wersje różnią się formatem łączności radiowej i urządzenia w ogóle się nie połączą — wystarczy zainstalować oba. Komunikat pojawia się, gdy dongle usłyszy głowicę: przy istniejącej parze — gdy głowica nie śpi (obudź ją przyciskiem); bez pary (np. po instalacji ze strony, która kasuje parę) — dopiero przy próbie parowania, z głowicą też w trybie parowania i blisko. Po zainstalowaniu obu sparuj urządzenia, jeśli instalacja skasowała parę. Urządzenie z firmware sprzed 25.11.2026 samo nie pokazuje żadnego ostrzeżenia.</p>
+  </details>
+  <details>
+    <summary>Przy instalacji na liście nie ma żadnego portu</summary>
+    <p>Sprawdź kabel (musi przenosić dane) i spróbuj innego gniazda USB. Dongle po Kroku 1 znika na chwilę i wraca pod innym portem — kliknij Krok 2 jeszcze raz po 2–3 sekundach.</p>
+  </details>
+  <details>
+    <summary>Instalacja głowicy nie może się połączyć</summary>
+    <p>Przytrzymaj przycisk <strong>BOOT</strong> na XIAO, naciśnij i puść <strong>RESET</strong>, puść BOOT i spróbuj ponownie. Zamknij inne programy, które mają otwarty port głowicy.</p>
+  </details>
+  <details>
+    <summary>Krok 1 dongla nic nie robi</summary>
+    <p>Dongle bez firmware albo ze starym firmware nie reaguje na Krok 1. Zewrzyj wtedy IO0 (BOOT) do GND, podłącz USB, puść i przejdź do Kroku 2. Zamknij program odczytowy, jeśli ma otwarty port dongla.</p>
+  </details>
+  <details>
+    <summary>Po instalacji urządzenie nie działa</summary>
+    <p>Odłącz i podłącz USB — po wgraniu układ może zostać w trybie wgrywania aż do odłączenia zasilania.</p>
+  </details>
+  <details>
+    <summary>Częste timeouty / nieudane odczyty w programie</summary>
+    <p>Urządzenia działają, ale przy słabym albo zakłóconym sygnale część ramek radiowych ginie, a program widzi tylko brak odpowiedzi licznika. Sprawdź (zakładka Parowanie i diagnostyka albo terminal portu diagnostycznego):</p>
+    <ul class="small" style="margin:6px 0;padding-left:20px">
+      <li>czy głowica nie śpi (<code>bat</code>, <code>czuwanie</code>, kafelek „Czas czuwania”) — wtedy obudź ją przyciskiem;</li>
+      <li>siłę sygnału (<code>rssi</code>, <code>mon</code>, „Śledź sygnał na żywo”) — gorszy niż −75 dBm: przesuń dongle (przedłużacz USB), nie trzymaj go za metalową obudową ani w szafce, zbliż do głowicy; telegramy SML (co sekundę) przychodziły w pomiarach bezbłędnie do ok. −80 dBm (119 z 119), przy −83…−89 dBm 75–78%, a przy −95 dBm tylko ok. 6% (jeden licznik, przy działającym obok cudzym urządzeniu Wi-Fi 2,4 GHz — radiu internetowym; bez niego przy −95 dBm doszło ok. 50%; dokładny próg leży między −80 a −89 dBm), więc dla niezawodnego SML dąż do sygnału lepszego niż −80 dBm;</li>
+      <li><code>stat</code> — rosnące liczniki „porzuc.” i „bez odp.” w linii „Radio TX” oraz „utracone w radiu” znaczą, że ramki giną w radiu (sygnał), a nie w liczniku;</li>
+      <li><code>log</code> — wpisy o utracie łącza, danych utraconych w radiu, restartach głowicy;</li>
+      <li>czy program nie ustawił parametrów portu, których głowica nie obsługuje (parzystość „space”, 16 bitów danych, prędkość poza zakresem) — <code>stat</code> pokaże wtedy linię „UWAGA: glowica odrzuca ostatnie parametry portu…”, kafelek „Łącze” zmieni się na „dane wstrzymane”, a w <code>log</code> pojawi się wpis „Glowica odrzuca parametry portu”; wystarczy ustawić inne parametry (np. 8N1, 8E1, 7E1).</li>
+    </ul>
+    <p class="small">Wyższa moc nadawania pomaga przy dużej odległości, ale nie przy zakłóceniach (np. inne urządzenia 2,4 GHz tuż obok) — wtedy zmień miejsce dongla albo kanał radiowy: <code>kanal skan</code> pokaże zajętość kanałów przez sieci Wi-Fi, <code>kanal auto</code> wybierze zalecany (zmienia tylko przy wyraźnie mniejszym obciążeniu), a potem <code>para</code> i przycisk głowicy 3 s (zmiana kanału wymaga ponownego parowania).</p>
+  </details>
+  <details>
+    <summary>Terminal innym programem (PuTTY)</summary>
+    <p>Port diagnostyczny działa też w zwykłym terminalu: dowolna prędkość <strong>oprócz 1234</strong> (ta przełącza dongle w tryb wgrywania), terminal musi ustawiać DTR (PuTTY robi to sam). Który port jest diagnostyczny: Menedżer urządzeń → Porty → Właściwości → Szczegóły → „Opis magistrali urządzenia zgłoszony” = „Optoglowica diag”.</p>
+  </details>
+</section>
+
+<section class="info">
+  <h2>Co znaczą diody</h2>
+  <details open>
+    <summary>Głowica — dioda RGB</summary>
+    <div class="table-wrap"><table>
+      <tr><td>krótki zielony błysk co 2 s</td><td>para i łącze z donglem działa</td></tr>
+      <tr><td>krótki żółty błysk co 2 s</td><td>para jest, ale brak łącza (dongle wyłączony / daleko, albo para tylko po tej stronie)</td></tr>
+      <tr><td>krótki czerwony błysk co 2 s</td><td>brak pary</td></tr>
+      <tr><td>miga szybko (kolor jak wyżej)</td><td>przesyłanie danych licznika</td></tr>
+      <tr><td>niebieska ciągle (przycisk trzymany)</td><td>puść = parowanie</td></tr>
+      <tr><td>niebieska miga</td><td>tryb parowania</td></tr>
+      <tr><td>zielona ciągle 2 s</td><td>sparowano</td></tr>
+      <tr><td>czerwona miga 2 s</td><td>parowanie nieudane</td></tr>
+      <tr><td>czerwona ciągle (przycisk ≥ 10 s)</td><td>puść = prośba o potwierdzenie kasowania pary</td></tr>
+      <tr><td>czerwona miga bardzo szybko (5 s)</td><td>krótko naciśnij = kasowanie pary; bez naciśnięcia para zostaje</td></tr>
+      <tr><td>czerwona ciągle 2 s (po potwierdzeniu)</td><td>para skasowana</td></tr>
+      <tr><td>3 pomarańczowe (żółte) mignięcia, potem nic</td><td>głowica zasypia (brak odczytu przez czas czuwania)</td></tr>
+      <tr><td>5 czerwonych mignięć, potem nic</td><td>akumulator poniżej 3,3 V (tylko na samym akumulatorze, bez kabla USB z komputerem) — ochrona ogniwa, głowica zasypia; naładuj</td></tr>
+      <tr><td>5 magentowych mignięć (czerwony + niebieski), potem nic</td><td>układ ≥ 85 °C — ochrona przed przegrzaniem; poczekaj, aż ostygnie, obudź przyciskiem 1 s</td></tr>
+      <tr><td>zielona po przytrzymaniu przycisku 1 s</td><td>głowica obudzona — można puścić</td></tr>
+    </table></div>
+    <p class="small">Prototyp bez diody RGB: kolory zastępuje żółta dioda na XIAO (świeci, gdy świeciłby dowolny kolor). Stan pary i łącza sprawdzisz wtedy w zakładce Parowanie i diagnostyka.</p>
+  </details>
+  <details>
+    <summary>Dongle — diody TX i RX</summary>
+    <div class="table-wrap"><table>
+      <tr><td>krótkie błyski TX / RX</td><td>dane do głowicy / od głowicy</td></tr>
+      <tr><td>obie wolno migają razem</td><td>brak pary</td></tr>
+      <tr><td>obie ciągle (przycisk trzymany)</td><td>puść = parowanie</td></tr>
+      <tr><td>migają naprzemiennie</td><td>tryb parowania</td></tr>
+      <tr><td>obie ciągle 2 s</td><td>sparowano</td></tr>
+      <tr><td>3 krótkie mignięcia</td><td>parowanie nieudane</td></tr>
+      <tr><td>obie migają szybko (przycisk ≥ 10 s)</td><td>puść = kasowanie pary</td></tr>
+      <tr><td>obie migają szybko 2 s (po puszczeniu)</td><td>para skasowana</td></tr>
+      <tr><td>TX, RX i LED_1 migają szybko razem przez 60 s</td><td>głowica zasnęła z powodu przegrzania (≥ 85 °C) — poczekaj, aż ostygnie, obudź przyciskiem 1 s</td></tr>
+    </table></div>
+  </details>
+  <details>
+    <summary>Dongle — dioda LED_1 (bateria głowicy)</summary>
+    <div class="table-wrap"><table>
+      <tr><td>świeci ciągle</td><td>łącze działa, akumulator głowicy powyżej ok. 3,7 V (albo głowica nie podaje pomiaru baterii)</td></tr>
+      <tr><td>krótki błysk co 2 s</td><td>ok. 3,6–3,7 V (ok. 20–30%)</td></tr>
+      <tr><td>miga 1 raz na sekundę</td><td>ok. 3,5–3,6 V (ok. 10–20%)</td></tr>
+      <tr><td>miga 4 razy na sekundę</td><td>poniżej 3,5 V — naładuj głowicę</td></tr>
+      <tr><td>miga bardzo szybko</td><td>bateria krytyczna (poniżej ok. 3,45 V, alarm gaśnie dopiero powyżej ok. 3,55 V; poniżej 3,3 V głowica sama zaśnie). Tak samo po zaśnięciu lub utracie łącza, jeśli ostatni stan baterii był krytyczny</td></tr>
+      <tr><td>krótki błysk co 3 s</td><td>brak łącza z głowicą (najczęściej głowica śpi) albo brak pary (dongle działa)</td></tr>
+    </table></div>
+  </details>
+  <details>
+    <summary>Głowica śpi — jak ją obudzić</summary>
+    <p>Gdy przez czas czuwania (domyślnie 1 min, zmiana w zakładce Parowanie i diagnostyka → Ustawienia głowicy → Czas czuwania) program nie odczytuje licznika, głowica mignie 3 razy na pomarańczowo i zaśnie. <strong>Obudzenie: przytrzymaj przycisk głowicy ok. 1 s</strong>, aż dioda zaświeci na zielono, i puść. Krótkie dotknięcie nie budzi (ochrona przed przypadkowym wciśnięciem). Łącze wraca po kilku sekundach. Do parowania: trzymaj dalej — po ok. 3 s dioda zaświeci na niebiesko, wtedy puść.</p>
+    <p class="small">Głowica nie zasypia, dopóki program odczytowy wysyła zapytania, zmienia parametry portu albo odbiera dane licznika (sam nasłuch, bez niczego od programu, najwyżej 5 min od otwarcia portu, ostatnich danych lub parametrów portu z programu albo obudzenia głowicy — potem otwórz port ponownie, a śpiącą głowicę obudź przyciskiem), oraz gdy ma kabel USB podłączony do komputera (sama ładowarka USB albo Qi nie blokuje usypiania). Otwarcie portu danych liczy się jak odczyt, ale sam otwarty port bez żadnego ruchu <strong>nie</strong> podtrzymuje głowicy — zaśnie po czasie czuwania, port otwarty czy zamknięty. Śledzenie sygnału na żywo podtrzymuje ją najwyżej 10 min. Dane nadawane przez sam licznik (np. SML co sekundę) przy zamkniętym porcie oraz otwarty port na uśpionym / zamkniętym laptopie zwykle się nie liczą. Gdy głowica śpi, dongle pokazuje „głowica śpi” zamiast błędu łącza, a historia (<code>log</code>) ma wpisy „Glowica zasnela” / „Glowica obudzona”.</p>
+    <p class="small">Zapytanie wysłane do śpiącej głowicy kończy się w programie <strong>timeoutem</strong> — po obudzeniu powtórz odczyt (dongle sam odtworzy parametry portu). Program, który pyta licznik rzadziej niż czas czuwania (obojętne, czy trzyma port otwarty, czy zamyka go między odczytami), zastanie głowicę uśpioną — do automatycznych odczytów bez nikogo przy głowicy ustaw czas czuwania „nigdy” i stałe zasilanie kablem USB z komputera.</p>
+    <p class="small">Gdy łącze z donglem rwie się w trakcie odczytów (słaby sygnał; łącze znika do kilku sekund po ostatnim zapytaniu albo odbiorze danych), głowica czeka do 5 min zamiast czasu czuwania; gdy zniknie w dłuższej przerwie między odczytami, obowiązuje zwykły czas czuwania. Gdy łącza nie ma wcale dłużej niż ok. 1 min (dongle wyjęty, laptop zamknięty) — zasypia po zwykłym czasie czuwania. Przycisk zacięty (trzymany dłużej niż 20 s albo wciśnięty już przy włączeniu) nie blokuje snu: głowica i tak zasypia, po puszczeniu śpi dalej, budzi ją dopiero następne przytrzymanie 1 s. Naciśnięcie w trakcie pomarańczowych mignięć przed snem przerywa zasypianie.</p>
+  </details>
+  <details>
+    <summary>Głowica przy słabym akumulatorze</summary>
+    <p>Gdy przy starcie radia napięcie spadnie (prawie pusty akumulator), głowica nie restartuje się w kółko, tylko śpi: 1 minutę po pierwszym spadku, 2 minuty po drugim, a po trzecim z rzędu zasypia i budzi ją już tylko przycisk (przytrzymaj ok. 1 s) — naładuj wtedy akumulator. Podczas krótkiego snu łącze wraca po jego końcu albo po naciśnięciu przycisku; odłączenie i podłączenie zasilania zaczyna od razu.</p>
+    <p class="small">Podobnie po 3 restartach z błędem z rzędu (awaria programu): głowica zasypia z budzeniem tylko przyciskiem (1 s), zamiast restartować się w kółko i rozładować akumulator. W historii dongla (<code>log</code>) widać wtedy zwykle restarty głowicy z przyczyną i na końcu utratę łącza (nie wpis o zaśnięciu); gdy błąd jest tuż po starcie, tylko utratę łącza. Przyczyna: podłącz głowicę kablem do komputera, obudź ją przyciskiem (1 s) i od razu otwórz terminal na jej porcie (port pojawia się dopiero po obudzeniu; najlepiej terminal, który sam łączy się ponownie) — log pokazuje tylko bieżące restarty (wcześniejsze nie są zapisywane), a po 3 kolejnych głowica znowu zaśnie, także z kablem.</p>
+  </details>
+</section>
+
+</section>
+
+<footer>
+  <div><strong>Bezprzewodowa optogłowica</strong> · autor: <strong>Sebastian Piwowarski</strong></div>
+  <div>Instalacja przez <a href="https://esphome.github.io/esp-web-tools/">ESP Web Tools</a>. Wgrywanie kasuje poprzednią zawartość pamięci urządzenia (także parę). Terminal działa przez Web Serial (Chrome, Edge).</div>
+</footer>
+
+</div>
+
+<script>
+  // ------------------------------------------------------------ zakładki
+  const tabs = [...document.querySelectorAll('nav.tabs [role="tab"]')];
+  function showTab(id) {
+    for (const t of tabs) {
+      const on = t.id === id;
+      t.setAttribute("aria-selected", on ? "true" : "false");
+      document.getElementById(t.getAttribute("aria-controls")).classList.toggle("active", on);
+    }
+    try { localStorage.setItem("optoTab", id); } catch (e) {}
+  }
+  tabs.forEach((t) => t.addEventListener("click", () => showTab(t.id)));
+  document.querySelectorAll("[data-goto]").forEach((a) => a.addEventListener("click", (e) => {
+    e.preventDefault();
+    showTab(a.dataset.goto);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }));
+  try {
+    const saved = localStorage.getItem("optoTab");
+    if (saved && tabs.some((t) => t.id === saved)) showTab(saved);
+  } catch (e) {}
+
+  // ------------------------------------------------------------ wersje z manifestów
+  document.querySelectorAll("[data-manifest]").forEach(async (el) => {
+    try {
+      const m = await (await fetch(el.dataset.manifest, { cache: "no-store" })).json();
+      el.textContent = "Wersja firmware: " + m.version;
+    } catch (e) {
+      el.textContent = "";
+    }
+  });
+
+  // Tylko dongle w normalnej pracy (TinyUSB CDC); głowica i dongle w trybie
+  // wgrywania mają PID 0x1001. 0x4001 = starszy firmware (jeden port),
+  // 0x4002 = dwa porty (dane + diagnostyka).
+  const DONGLE_FILTERS = [
+    { usbVendorId: 0x303a, usbProductId: 0x4001 },
+    { usbVendorId: 0x303a, usbProductId: 0x4002 },
+  ];
+
+  // ------------------------------------------------------------ Krok 1 dongla
+  // Otwarcie portu z prędkością 1234 restartuje dongle w tryb wgrywania
+  // (tak samo robi dongle/upload_touch.py).
+  const prep = document.getElementById("dongle-prep");
+  const prepStatus = document.getElementById("dongle-prep-status");
+  if (!("serial" in navigator)) {
+    prep.disabled = true;
+    prepStatus.textContent = "Ta przeglądarka nie obsługuje portów szeregowych. Użyj Chrome lub Edge.";
+  }
+  prep.addEventListener("click", async () => {
+    if (T.connecting || T.closingPort) {
+      prepStatus.textContent = "Terminal właśnie się łączy albo rozłącza — spróbuj za chwilę.";
+      return;
+    }
+    if (T.port) await disconnect("Terminal rozłączony przed przełączeniem dongla w tryb wgrywania.");
+    let port;
+    try {
+      port = await navigator.serial.requestPort({ filters: DONGLE_FILTERS });
+    } catch (e) {
+      prepStatus.textContent = "Nie wybrano portu. Jeśli dongla nie ma na liście, jest pusty albo już w trybie wgrywania — przejdź do Kroku 2.";
+      return;
+    }
+    let onDisconnect = null;
+    const gone = new Promise((resolve) => {
+      onDisconnect = (ev) => {
+        if (ev.target === port) resolve(true);
+      };
+      navigator.serial.addEventListener("disconnect", onDisconnect);
+      setTimeout(() => resolve(false), 2000);
+    });
+    const cleanup = () => navigator.serial.removeEventListener("disconnect", onDisconnect);
+    try {
+      await port.open({ baudRate: 1234 });
+    } catch (e) {
+      cleanup();
+      prepStatus.textContent = "Nie udało się otworzyć portu — pewnie używa go inny program. Kliknij Krok 1 jeszcze raz i wybierz drugi port „Optoglowica dongle”. (" + e.message + ")";
+      return;
+    }
+    await new Promise((r) => setTimeout(r, 300));
+    // Dongle właśnie się odłącza, więc zamknięcie może zgłosić błąd.
+    try { await port.close(); } catch (e) {}
+    const ok = await gone;
+    cleanup();
+    prepStatus.textContent = ok
+      ? "Gotowe. Za 2–3 s kliknij Krok 2 i wybierz nowy port."
+      : "Dongle nie zareagował. Zewrzyj IO0 (BOOT) do GND, podłącz USB i przejdź do Kroku 2.";
+  });
+
+  // ------------------------------------------- ochrona instalatora (Krok 2, głowica)
+  // 1) Filtr portów: instalator ESP Web Tools wybiera port bez filtrów, więc
+  //    na liście byłyby wszystkie porty. Podajemy mu filtr 303A:1001 ("USB
+  //    JTAG/serial debug unit" - głowica C6 i dongle S3 w trybie wgrywania), więc
+  //    złego portu nie da się wybrać. Pomyłka głowica / dongle jest bezpieczna:
+  //    manifest ma obraz tylko dla jednego układu, instalator przerwie z błędem.
+  //    Przełącznik "pokaż wszystkie porty" wyłącza filtr (nietypowy sprzęt).
+  //    Nasze wywołania (terminal, Krok 1) podają własne filtry - bez zmian.
+  // 2) Port "Optoglowica" (dongle w zwykłej pracy, 303A:4001/4002) odrzucany
+  //    także bez filtra, zanim cokolwiek się otworzy: esptool wysłałby sekwencje
+  //    synchronizacji przez port danych do licznika.
+  const INSTALL_FILTERS = [{ usbVendorId: 0x303a, usbProductId: 0x1001 }];
+  const instShowAll = document.getElementById("inst-show-all");
+  const instStatus = {
+    "manifest-opto.json": document.getElementById("opto-inst-status"),
+    "manifest-dongle.json": document.getElementById("dongle-inst-status"),
+  };
+  let instLast = null;   // manifest ostatnio klikniętego przycisku instalacji
+  document.addEventListener("click", (e) => {
+    const b = e.target && e.target.closest ? e.target.closest("esp-web-install-button") : null;
+    if (!b) return;
+    instLast = (b.getAttribute("manifest") || "").split("?")[0];   // bez ?v=<wersja> (cache-busting)
+    for (const el of Object.values(instStatus)) if (el) el.textContent = "";
+  }, true);
+  function instHint(text) {
+    const el = instStatus[instLast];
+    if (el) el.textContent = text;
+  }
+  if ("serial" in navigator) {
+    const origRequestPort = navigator.serial.requestPort.bind(navigator.serial);
+    navigator.serial.requestPort = async (opts) => {
+      if (opts && opts.filters) return origRequestPort(opts);   // nasze wywołania
+      const all = instShowAll && instShowAll.checked;
+      let port;
+      try {
+        port = await origRequestPort(all ? opts : { ...(opts || {}), filters: INSTALL_FILTERS });
+      } catch (e) {
+        if (e && e.name === "NotFoundError" && !all) {
+          instHint(instLast === "manifest-dongle.json"
+            ? "Na liście nie było portu „USB JTAG/serial debug unit”? Najpierw Krok 1 (pusty dongle: IO0 do GND przy podłączaniu USB). Port „Optoglowica” jest tu celowo ukryty."
+            : "Na liście nie było portu „USB JTAG/serial debug unit”? Podłącz głowicę ponownie kablem USB-C, który przesyła dane (nie tylko ładuje); jeśli dalej nic — podłączaj, trzymając przycisk BOOT na module XIAO. Dongle jest tu celowo ukryty.");
+        }
+        throw e;
+      }
+      const i = port.getInfo();
+      if (i.usbVendorId === 0x303a && (i.usbProductId === 0x4001 || i.usbProductId === 0x4002)) {
+        // Instalator pokaże to w alert() przeglądarki ("Error: ...").
+        throw new DOMException("Wybrano port „Optoglowica” — to dongle w zwykłej pracy, nie da się go tak zaprogramować (a instalator wysłałby dane do licznika). " +
+          "Dongle: najpierw Krok 1, potem w Kroku 2 wybierz NOWY port „USB JTAG/serial debug unit”. Głowica: odłącz dongle i wybierz port głowicy.", "SecurityError");
+      }
+      instHint("");   // np. udany wybór po "Try again" - stara podpowiedź precz
+      return port;
+    };
+  }
+  // 3) Strażnik okna instalatora (ESP Web Tools 10.4.0; Esc go nie zamyka -
+  //    biblioteka blokuje cancel). Warunki jak w render() okna; pola _client,
+  //    _state, _error, _installState są reaktywne (przy aktualizacji biblioteki
+  //    sprawdzić).
+  //    a) Zamknięty port, a okno czeka na akcję (panel / pytanie o wymazanie /
+  //       potwierdzenie instalacji): każda akcja zawiesiłaby okno (np. Install
+  //       robi port.close() na zamkniętym porcie -> "Preparing installation"
+  //       na zawsze). Także "Connecting" po błędzie instalacji: "Back" woła
+  //       _initialize na zamkniętym porcie i nadpisuje ERROR stanem DASHBOARD.
+  //       -> stan ERROR z komunikatem i przyciskiem Close (najpierw _state:
+  //       willUpdate czyści _error przy stanie innym niż ERROR). W zwykłym
+  //       przebiegu port w tych stanach jest zawsze otwarty.
+  //    b) "Connecting" przy otwartym porcie dłużej niż EWT_STUCK_MS (np. wiszące
+  //       pobieranie manifestu) -> _error (gdy okno jednak się połączy, znika).
+  //    c) "Wrapping up" bez końca po UDANYM wgraniu: ponowne otwarcie portu się
+  //       nie udało (urządzenie po restarcie wraca pod innym portem - dongle jako
+  //       "Optoglowica"). Po EWT_WRAP_MS pokazujemy "Installation complete"
+  //       (_client = null); Next prowadzi do panelu z zamkniętym portem = (a).
+  const EWT_STUCK_MS = 10000;
+  const EWT_WRAP_MS = 8000;
+  const EWT_STUCK_MSG = "Brak odpowiedzi z wybranego portu — najpewniej wybrano zły port, urządzenie się odłączyło albo nie ma połączenia z internetem. " +
+    "Kliknij Close, odłącz i podłącz urządzenie, potem wybierz właściwy port (dongle po Kroku 1: „USB JTAG/serial debug unit”). Jeśli okno się nie zamyka, odśwież stronę (F5).";
+  const EWT_CLOSED_MSG = "Port urządzenia jest zamknięty (po wgraniu urządzenie uruchamia się od nowa albo zostało odłączone). " +
+    "Kliknij Close. Jeśli wgrywanie się zakończyło — odłącz i podłącz USB. Kolejna instalacja: kliknij przycisk instalacji na stronie jeszcze raz.";
+  setInterval(() => {
+    const cls = customElements.get("ewt-install-dialog");
+    if (!cls) return;
+    for (const d of document.querySelectorAll("ewt-install-dialog")) {
+      if (!(d instanceof cls) || d._state === undefined || !d.port) continue;
+      const now = Date.now();
+      const waiting = d._state === "DASHBOARD" || d._state === "ASK_ERASE" ||
+                      (d._state === "INSTALL" && !d._installConfirmed);
+      if (waiting && d.port.readable === null) {
+        d._state = "ERROR";
+        d._error = d._client === undefined ? EWT_STUCK_MSG : EWT_CLOSED_MSG;
+        continue;
+      }
+      const stuck = d._client === undefined && d._state !== "INSTALL" && d._state !== "LOGS" && !d._error;
+      if (!stuck) {
+        d._ogStuckSince = 0;
+      } else if (!d._ogStuckSince) {
+        d._ogStuckSince = now;
+      } else if (now - d._ogStuckSince >= EWT_STUCK_MS) {
+        d._error = EWT_STUCK_MSG;
+      }
+      const wrap = d._state === "INSTALL" && d._installState && d._installState.state === "finished" && d._client === undefined;
+      if (!wrap) {
+        d._ogWrapSince = 0;
+      } else if (!d._ogWrapSince) {
+        d._ogWrapSince = now;
+      } else if (now - d._ogWrapSince >= EWT_WRAP_MS) {
+        d._client = null;
+        instHint("Wgrywanie zakończone. Odłącz i podłącz USB.");
+      }
+    }
+  }, 500);
+
+  // ------------------------------------------------------------ terminal
+  // Bezpieczeństwo: dongle ma port danych (do licznika!) i port diagnostyczny
+  // o tym samym VID/PID - Web Serial ich nie rozróżnia. Po otwarciu NICZEGO nie
+  // wysyłamy, dopóki dongle nie przywita się tekstem "port diagnostyczny"
+  // (wysyła go po ustawieniu DTR tylko na porcie diag). Brak powitania =
+  // rozłączenie bez wysyłania.
+  const GREETING = "port diagnostyczny";
+  const GREETING_WAIT_MS = 2500;
+  const BAUD = 115200;            // dowolna OPRÓCZ 1234 (tryb wgrywania)
+  const TERM_MAX = 200000;        // znaków w oknie terminala
+
+  const $ = (id) => document.getElementById(id);
+  const termEl = $("term");
+  const inputEl = $("t-input");
+  const enc = new TextEncoder();
+
+  // Stan terminala. Każde połączenie ma własną sesję (sess): bufor sprzed
+  // weryfikacji, flagi i czytnik należą do niej, więc dane jednego portu nie
+  // mogą "zweryfikować" innego. T.port/T.verified - skróty do bieżącej sesji.
+  const T = {
+    sess: null, port: null, verified: false,
+    connecting: false,
+    closingPort: false,
+    line: "",         // bieżąca linia do analizy
+    monActive: false,
+    paired: null,     // z ostatniego "Para: ..." (null = nie wiadomo)
+    headStale: false, // ostatni stan głowicy "(NIEAKTUALNY)" - do kafelka temperatury
+    nvsBad: false,    // ostatni stat miał "UWAGA: NVS niedostepny" (dongle bez pamięci NVS, nadawanie wstrzymane) - kafelek Łącze
+    lcBad: false,     // ostatni stat/bat miał "UWAGA: glowica odrzuca ostatnie parametry portu" (P10) - kafelek Łącze
+    lastCmd: "",
+    writeChain: Promise.resolve(),
+    history: [], histPos: 0,
+  };
+
+  // --- wyświetlanie
+  function termAppend(text, cls) {
+    const atBottom = termEl.scrollHeight - termEl.scrollTop - termEl.clientHeight < 30;
+    if (cls) {
+      const s = document.createElement("span");
+      s.className = cls;
+      s.textContent = text;
+      termEl.appendChild(s);
+    } else {
+      // Backspace z echa dongla ("\b \b") - usuń ostatni znak.
+      let out = "";
+      for (const ch of text) {
+        if (ch === "\b") {
+          if (out.length) out = out.slice(0, -1);
+          else if (termEl.lastChild && termEl.lastChild.nodeType === 3) {
+            termEl.lastChild.textContent = termEl.lastChild.textContent.slice(0, -1);
+          }
+        } else if (ch !== "\r") {
+          out += ch;
+        }
+      }
+      if (out) {
+        const last = termEl.lastChild;
+        if (last && last.nodeType === 3) last.textContent += out;
+        else termEl.appendChild(document.createTextNode(out));
+      }
+    }
+    // Limit długości okna: najstarsze fragmenty, a z długiego węzła tylko początek.
+    let total = termEl.textContent.length;
+    while (total > TERM_MAX && termEl.firstChild) {
+      const first = termEl.firstChild;
+      const len = first.textContent.length;
+      if (termEl.childNodes.length > 1 && total - len >= TERM_MAX * 0.8) {
+        termEl.removeChild(first);
+        total -= len;
+      } else {
+        first.textContent = first.textContent.slice(Math.min(len, total - Math.floor(TERM_MAX * 0.8)));
+        break;
+      }
+    }
+    if (atBottom) termEl.scrollTop = termEl.scrollHeight;
+  }
+  const sys = (t) => termAppend("\n[" + t + "]\n", "sys");
+  const sysErr = (t) => termAppend("\n[" + t + "]\n", "err");
+
+  // Komunikaty ustawień głowicy - w panelu ustawień (komunikat w panelu połączenia
+  // byłby poza ekranem, a wynik zmiany mocy przychodzi po kilku-kilkudziesięciu s).
+  function setBoxMsg(id, text, kind) {
+    const m = $(id);
+    m.textContent = text || "";
+    m.className = "msg" + (text ? " show " + (kind || "") : "");
+  }
+  // Pod wierszem, którego dotyczą (wynik widać przy przycisku; czuwanie i moc
+  // nie nadpisują sobie komunikatów).
+  const setSleepMsg = (t, k) => setBoxMsg("sleep-msg", t, k);
+  const setPwrMsg = (t, k) => setBoxMsg("pwr-msg", t, k);
+  const setChanMsg = (t, k) => setBoxMsg("chan-msg", t, k);
+  function setSMsg(text, kind) { setSleepMsg(text, kind); setPwrMsg(text, kind); }
+  function setMsg(text, kind) {
+    const m = $("t-msg");
+    m.textContent = text || "";
+    m.className = "msg" + (text ? " show " + (kind || "") : "");
+  }
+  function setPill(text, kind) {
+    const p = $("t-pill");
+    p.textContent = text;
+    p.className = "pill" + (kind ? " " + kind : "");
+  }
+  function setEnabled(on) {
+    document.querySelectorAll(".cmd").forEach((b) => (b.disabled = !on));
+    $("t-refresh").disabled = !on;
+    $("sleep-save").disabled = !on;
+    $("pwr-save").disabled = !on;
+    for (const id of ["chan-save", "chan-scan", "chan-auto"]) $(id).disabled = !on;
+    inputEl.disabled = !on;
+    $("t-send").disabled = !on;
+    $("t-connect").hidden = !!T.port;
+    $("t-connect").disabled = T.connecting || T.closingPort || !("serial" in navigator);
+    $("t-disconnect").hidden = !T.port;
+  }
+
+  // --- kafelki stanu
+  function tile(id, value, sub, kind, pct) {
+    const el = $(id);
+    el.className = "tile" + (kind ? " " + kind : "");
+    el.querySelector(".v").textContent = value;
+    if (id === "st-sleep") $("sleep-cur").textContent = "Obecnie: " + value;
+    el.querySelector(".s").textContent = sub || "";
+    const bar = el.querySelector(".bar > i");
+    if (bar) bar.style.width = (pct == null ? 0 : Math.max(0, Math.min(100, pct))) + "%";
+  }
+  function rssiKind(d) { return d > -75 ? "ok" : d > -85 ? "mid" : "bad"; }
+  function rssiText(d) { return d > -60 ? "bardzo dobry" : d > -75 ? "dobry" : d > -85 ? "słaby" : "granica zasięgu"; }
+  // Progi jak w donglu (HEAD_TEMP_HIGH_C 70, HEAD_TEMP_LOW_C 0); "mid" - blisko progu.
+  function tempKind(c) { return c >= 70 || c <= 0 ? "bad" : c >= 60 || c <= 5 ? "mid" : "ok"; }
+  const ver = { dongle: "", head: "", match: "" };
+  const LCBAD_SUB = "głowica odrzuca parametry portu z programu (np. parzystość space, 16 bitów) — ustaw 8N1/8E1/7E1 itp.; odświeża stat/bat";
+  function protoTile() {
+    tile("st-link", "inna wersja", "głowica i dongle mają niezgodne wersje firmware — zainstaluj oba urządzenia (zakładka Instalacja)", "bad");
+  }
+  // keepMsg: po rozłączeniu komunikaty ustawień zostają (settingsAbort pisze w nich o przerwaniu).
+  function resetTiles(keepMsg) {
+    T.lcBad = false;
+    T.nvsBad = false;
+    T.protoBad = false;
+    $("chan-pair").hidden = true;   // przycisk "Sparuj z głowicą teraz" tylko po wyborze kanału w tej sesji
+    tile("st-pair", "—", "po połączeniu");
+    tile("st-link", "—", "");
+    tile("st-bat", "—", "", "", null);
+    tile("st-rssi", "—", "", "", null);
+    tile("st-temp", "—", "");
+    tile("st-chan", "—", "");
+    tile("st-sleep", "—", "");
+    tile("st-restarts", "—", "");
+    T.sleepPending = null;
+    T.sleepEdited = false;
+    T.pwrEdited = false;
+    T.sleepSawWait = false;
+    $("pwr-cur").textContent = "Obecnie: —";
+    $("chan-cur").textContent = "Obecnie: —";
+    pwrSel.value = "max";
+    if (!keepMsg) { setSMsg(""); setChanMsg(""); }
+    const custom = sleepSel.querySelector("option[data-custom]");
+    if (custom) custom.remove();
+    sleepSel.value = "60";
+    ver.dongle = ver.head = ver.match = "";
+    T.paired = null;
+    T.headStale = false;
+    $("st-ver").textContent = "Wersje firmware: —";
+  }
+  function showVer() {
+    let t = "Wersje firmware: dongle " + (ver.dongle || "?") + ", głowica " + (ver.head || "?");
+    if (ver.match) t += " — " + ver.match;
+    $("st-ver").textContent = t;
+  }
+
+  // "12m 05s" / "3h 07m" / "2d 04h" z dongla -> "12 min 05 s" itd.
+  function plDur(t) {
+    return t.replace(/(\d+)d\b/g, "$1 d").replace(/(\d+)h\b/g, "$1 h").replace(/(\d+)m\b/g, "$1 min").replace(/(\d+)s\b/g, "$1 s");
+  }
+  // Czas czuwania słownie z dongla ("nigdy", "45 s", "5 min", "2 min 30 s") -> s.
+  const sleepSel = $("sleep-sel");
+  function sleepSeconds(t) {
+    if (t === "nigdy") return 0;
+    const m = t.match(/^(?:(\d+) min)?\s*(?:(\d+) s)?$/);
+    if (!m || (m[1] == null && m[2] == null)) return null;
+    return (+(m[1] || 0)) * 60 + (+(m[2] || 0));
+  }
+  // Ustawienie spoza listy (np. wpisane ręcznie "czuwanie 45s"): jedna opcja
+  // dodatkowa, wstawiana w kolejności, usuwana przy wartości z listy.
+  function setSleepSel(sec, label) {
+    let custom = sleepSel.querySelector("option[data-custom]");
+    const std = [...sleepSel.options].some((o) => !o.dataset.custom && +o.value === sec);
+    if (std) {
+      if (custom) custom.remove();
+    } else {
+      if (!custom) { custom = new Option("", ""); custom.dataset.custom = "1"; }
+      custom.text = label + " (ustawione w głowicy)";
+      custom.value = String(sec);
+      const before = [...sleepSel.options].find((o) => !o.dataset.custom && (+o.value === 0 || +o.value > sec));
+      sleepSel.insertBefore(custom, before || null);
+    }
+    sleepSel.value = String(sec);
+  }
+  sleepSel.addEventListener("change", () => { T.sleepEdited = true; });
+  const chanSel = $("chan-sel");
+  const pwrSel = $("pwr-sel");
+  pwrSel.addEventListener("change", () => { T.pwrEdited = true; });
+  // Nazwy poziomów z dongla ("maksymalna", "srednia", ...) -> wartość listy i tekst.
+  const PWR = { maksymalna: ["max", "maksymalna"], srednia: ["sred", "średnia"], niska: ["nisk", "niska"], minimalna: ["min", "minimalna"] };
+
+  // --- analiza odpowiedzi dongla (linia po linii)
+  function parseLine(raw) {
+    const l = raw.replace(/^(> )+/, "").trim();
+    if (!l) return;
+    let m;
+    if ((m = l.match(/^Para: glowica (\S+)/))) {
+      T.paired = true;
+      const ch = l.match(/, kanal (\d+)$/);   // firmware od 2026-11-18
+      tile("st-pair", m[1], "sparowano, szyfrowanie", "ok");
+      if (ch) $("chan-cur").textContent = "Obecnie: kanał " + ch[1];
+      if (ch) tile("st-chan", ch[1], "2,4 GHz, kanał pary"); else tile("st-chan", "—", "dongle ze starszym firmware");
+    } else if (/^Para: BRAK/.test(l)) {
+      // Bez pary nie ma głowicy: stare dane baterii i wersji precz.
+      T.paired = false;
+      T.lcBad = false;
+      tile("st-pair", "brak pary", "kliknij „Sparuj z głowicą”", "bad");
+      tile("st-link", "brak", "najpierw sparuj", "bad");
+      tile("st-bat", "—", "brak pary", "", null);
+      tile("st-chan", "—", "brak pary");
+      $("chan-cur").textContent = "Obecnie: — (brak pary, domyślny 13)";
+      tile("st-temp", "—", "brak pary");
+      tile("st-sleep", "—", "brak pary");
+      if (/^Wysyłanie/.test($("sleep-msg").textContent)) setSleepMsg("Najpierw sparuj głowicę z donglem — czas czuwania zapisuje się w głowicy.", "mid");
+      if (/^Wysyłanie/.test($("pwr-msg").textContent)) setPwrMsg("Najpierw sparuj głowicę z donglem — moc ustawia się w głowicy i donglu.", "mid");
+      $("pwr-cur").textContent = "Obecnie: — (brak pary)";
+      T.sleepPending = null;
+      ver.head = ""; ver.match = ""; showVer();
+    }
+    // Dongle bez działającej pamięci NVS (komunikat B11): nie zapisuje pary ani licznika uruchomień, więc nie nadaje.
+    // Linia UWAGA jest przed "Lacze z glowica:", więc stan trzyma flaga; zdejmuje ją początek następnego stat.
+    if (/^Dongle \S+, praca/.test(l)) { T.nvsBad = false; T.protoBad = false; }
+    if (/^UWAGA: NVS niedostepny/.test(l)) T.nvsBad = true;
+    if ((m = l.match(/Lacze z glowica: (OK|brak)/)) || (m = l.match(/, lacze (OK|brak)( \(glowica spi\))?$/))) {
+      if (m[1] !== "OK") T.lcBad = false;   // bez łącza stan głowicy nieznany (po powrocie może być już po restarcie)
+      // P12: łącze działa = obie strony mają już tę samą wersję protokołu.
+      if (m[1] === "OK" && T.protoBad) { T.protoBad = false; ver.match = ""; showVer(); }
+      if (T.protoBad) {
+        protoTile();   // rssi / mon: "brak" nie zdejmuje czerwonego stanu
+      } else if (T.nvsBad) {
+        tile("st-link", "nadawanie wstrzymane", "dongle nie ma działającej pamięci NVS (nie zapisze pary) — wgraj firmware z kasowaniem pamięci i sparuj od nowa", "bad");
+      } else if (m[1] === "OK") { if (T.lcBad) tile("st-link", "dane wstrzymane", LCBAD_SUB, "bad"); else tile("st-link", "działa", "głowica w zasięgu", "ok"); }
+      else if (T.paired === false) tile("st-link", "brak", "najpierw sparuj", "bad");
+      else if (/glowica spi/.test(l)) tile("st-link", "głowica śpi", "obudź: przytrzymaj przycisk głowicy ok. 1 s (powód snu: kafelek „Czas czuwania”)", "mid");
+      else tile("st-link", "brak", "głowica śpi, jest wyłączona lub za daleko — obudź: przycisk głowicy 1 s", "mid");
+    }
+    // Od firmware 2026-11-22 (stat): czas od ostatniej poprawnej ramki od głowicy - dopisek pod kafelkiem łącza
+    // (prawdziwy czas ramki, więc działa także przy braku łącza). Linia idzie zaraz po "Lacze z glowica:".
+    if ((m = l.match(/^Ostatnia ramka od glowicy: (.+)$/)) && !T.nvsBad) {
+      const a = m[1];
+      const txt = /^brak/.test(a) ? "nic jeszcze nie przyszło od głowicy"
+        : /ponad godziny/.test(a) ? "ostatnia ramka od głowicy: ponad godzinę temu"
+        : "ostatnia ramka od głowicy: " + a.replace(/^sprzed /, "").replace(/(\d)\.(\d) s/, "$1,$2 s") + " temu";
+      const el = $("st-link").querySelector(".s");
+      el.textContent = (el.textContent ? el.textContent + " · " : "") + txt;
+    }
+    // P12 (firmware od 2026-11-25; stat, wersja, nieudane parowanie): "UWAGA: inna wersja protokolu u glowicy (...)"
+    // - czerwony kafelek "Łącze". W stat linia idzie po "Lacze z glowica:" i "Ostatnia ramka", więc je nadpisuje.
+    if (/^UWAGA: inna wersja protokolu/.test(l)) {
+      T.protoBad = true;
+      protoTile();
+      ver.head = "?"; ver.match = "RÓŻNE — wgraj oba"; showVer();
+    }
+    // Od firmware 2026-11-22 (stat): "Restarty od wlaczenia dongla: dongle N (w tym nadzor Wi-Fi R4: n), glowica M (R4: k)".
+    if ((m = l.match(/^Restarty od wlaczenia dongla: dongle (\d+) \(w tym nadzor Wi-Fi R4: (\d+)\), glowica (\d+) \(R4: (\d+)\)/))) {
+      const r4 = +m[2] + +m[4];
+      tile("st-restarts", "dongle " + m[1] + " · głowica " + m[3],
+           "od włączenia zasilania dongla; przez nadzór Wi-Fi (R4): dongle " + m[2] + ", głowica " + m[4] +
+           (r4 > 0 ? " — stos radia się zawieszał, zgłoś to" : ""), r4 > 0 ? "mid" : "");
+    }
+    // Od firmware 2026-11-21 (P10): "UWAGA: glowica odrzuca ostatnie parametry portu..." (stat, bat) - łącze działa,
+    // ale głowica nie przekazuje danych (np. parzystość space). Flaga T.lcBad trzyma stan także dla linii "..., lacze OK"
+    // (rssi, mon), które nie powtarzają UWAGA; zdejmuje ją następna linia stanu głowicy ("Glowica X: ...") bez UWAGA.
+    if (/^Glowica \S+: /.test(l) && T.lcBad) {
+      T.lcBad = false;
+      if ($("st-link").querySelector(".v").textContent === "dane wstrzymane") tile("st-link", "działa", "głowica w zasięgu", "ok");
+    }
+    // Przy innej wersji protokołu status głowicy jest stary - nie nadpisuje kafelka "inna wersja".
+    if (/^UWAGA: glowica odrzuca ostatnie parametry portu/.test(l) && !T.protoBad) {
+      T.lcBad = true;
+      tile("st-link", "dane wstrzymane", LCBAD_SUB, "bad");
+    }
+    // Czas czuwania: "  czuwanie: <czas>[ - <stan>]" (bat, stat, czuwanie).
+    if ((m = l.match(/^czuwanie: (.+?)(?: - (.+))?$/))) {
+      const val = m[1], st = m[2] || "";
+      if (/starszy firmware/.test(st) || /^brak/.test(val)) {
+        tile("st-sleep", "—", "głowica ma starszy firmware — zaktualizuj", "mid");
+      } else if (/brak lacza/.test(st)) {
+        tile("st-sleep", val, "stan nieznany — brak łącza z głowicą", "mid");
+      } else if (/PRZEGRZANIA/.test(st)) {
+        const going = /zasypia/.test(st);
+        tile("st-sleep", val, "głowica " + (going ? "zasypia" : "zasnęła") + " z powodu PRZEGRZANIA (układ ≥ 85 °C) — poczekaj, aż ostygnie, potem obudź przyciskiem (1 s)", "bad");
+      } else if (/BATERII/.test(st)) {
+        tile("st-sleep", val, "głowica zasnęła z powodu niskiej baterii (< 3,3 V) — naładuj, potem obudź przyciskiem (1 s)", "bad");
+      } else if (/SPI od (.+?) \(/.test(st)) {
+        tile("st-sleep", val, "głowica śpi od " + plDur(st.match(/SPI od (.+?) \(/)[1]) + " — obudź przyciskiem (1 s)", "mid");
+      } else if (/wlasnie zasypia/.test(st)) {
+        tile("st-sleep", val, "głowica właśnie zasypia", "mid");
+      } else if (/kabel USB/.test(st)) {
+        tile("st-sleep", val, "nie usypia — kabel USB z komputerem");
+      } else if (/nie usypia/.test(st)) {
+        tile("st-sleep", "nigdy", "głowica nie usypia");
+      } else if ((m = st.match(/zasnie za (.+) bez odczytu/))) {
+        tile("st-sleep", val, "bez odczytu zaśnie za " + plDur(m[1]) + (/na akumulatorze/.test(st) ? " (na akumulatorze „nigdy” = najwyżej 30 min)" : ""), "ok");
+      } else {
+        tile("st-sleep", val, "");
+      }
+      if (T.sleepPending) {
+        const el = $("st-sleep");
+        el.querySelector(".s").textContent += " · zmiana na " + T.sleepPending + " czeka na głowicę";
+      }
+      // Lista wyboru pokazuje bieżące ustawienie głowicy (nie w trakcie wyboru
+      // i nie, gdy czeka zmiana - wtedy zostaje wybrana nowa wartość).
+      const sec = sleepSeconds(val);
+      if (sec != null && !T.sleepPending && !T.sleepEdited && !sleepSel.matches(":focus")) setSleepSel(sec, val);
+    }
+    // Odpowiedź na "czuwanie": linia stanu, ewentualnie "zmiana na ... czeka",
+    // na końcu "Zmiana: czuwanie <czas> ...". Bez linii "czeka" = dongle nie ma
+    // już prośby (np. skasował ją przy parowaniu z inną głowicą).
+    if (/^Zmiana: czuwanie </.test(l)) {
+      if (!T.sleepSawWait && T.sleepPending) {
+        T.sleepPending = null;
+        const el = $("st-sleep");
+        el.querySelector(".s").textContent = el.querySelector(".s").textContent.replace(/ · zmiana na .* czeka na głowicę$/, "");
+      }
+      T.sleepSawWait = false;   // koniec odpowiedzi - następna liczy od nowa
+    }
+    // Po parowaniu stan prośby od nowa z dongla (inna głowica - dongle ją skasował).
+    if (/^Parowanie: SPAROWANO/.test(l)) {
+      $("chan-pair").hidden = true;
+      T.protoBad = false;
+      T.sleepPending = null;
+      $("pwr-cur").textContent = "Obecnie: — (sprawdzanie po parowaniu)";
+      // Dongle skasował prośbę dla poprzedniej głowicy - jej komunikat nieaktualny.
+      if (/pojawi się tutaj|Wysyłanie/.test($("sleep-msg").textContent)) setSleepMsg("");
+      // Mogła to być inna głowica (inna wersja) - porównanie wersji od nowa.
+      ver.head = "?"; ver.match = ""; showVer();
+      // Status głowicy przychodzi po kilku s od sparowania.
+      const sess = T.sess;   // tylko ta sama sesja (rozłączenie / inny dongle w ciągu 4 s)
+      // stat też: po parowaniu na innym kanale niż 13 łącze wraca dopiero po kilku s.
+      setTimeout(() => { if (T.sess === sess && T.verified && !T.monActive) { send("czuwanie", false); send("moc", false); send("wersja", false); send("stat", false); } }, 4000);
+    }
+    if ((m = l.match(/^zmiana na (.+) czeka na glowice/))) {
+      T.sleepSawWait = true;
+      T.sleepPending = m[1];
+      const el = $("st-sleep");
+      if (!/czeka na głowicę/.test(el.querySelector(".s").textContent)) {
+        el.querySelector(".s").textContent += " · zmiana na " + m[1] + " czeka na głowicę";
+      }
+    }
+    if ((m = l.match(/^Czas czuwania (.+) - wysylanie do glowicy/))) {
+      T.sleepPending = m[1];
+      T.sleepEdited = false;
+      if (/lacze brak/.test(l)) {
+        setSleepMsg("Brak łącza z głowicą (śpi albo jest poza zasięgiem). Czas czuwania " + m[1] + " dojdzie, gdy ją obudzisz: przytrzymaj przycisk głowicy ok. 1 s — potwierdzenie pojawi się tutaj.", "mid");
+      }
+    }
+    // Moc: "  moc: <nazwa> (<n> dBm)[ - <stan>]" (bat, stat, moc) i wynik zmiany.
+    if ((m = l.match(/^moc: (\S+)(?: \((\d+) dBm\))?(?: - (.+))?$/))) {
+      const p = PWR[m[1]], st = m[3] || "";
+      if (!p) {
+        $("pwr-cur").textContent = m[1] === "brak" ? "Obecnie: — (głowica ma starszy firmware)" : "Obecnie: nieznany poziom — zaktualizuj oba urządzenia";
+      } else {
+        $("pwr-cur").textContent = "Obecnie: " + p[1] + " (" + m[2] + " dBm)" +
+          (/PROBA/.test(st) ? " — trwa sprawdzanie sygnału" : /nieaktualne/.test(st) ? " (nieaktualne — brak łącza)" :
+           /AWARYJNIE/.test(st) ? " — teraz AWARYJNIE maksymalna (słabe łącze albo jego brak); zapisz moc ponownie albo wybierz wyższą" : "");
+        if (!T.pwrEdited && !pwrSel.matches(":focus")) pwrSel.value = p[0];
+      }
+    }
+    const pwrTxt = (n) => (PWR[n] ? PWR[n][1] : n);
+    if (/^Moc .+ - wysylanie do glowicy/.test(l)) {
+      setPwrMsg("Głowica i dongle sprawdzają łącze przy nowej mocy (zwykle kilka s, najwyżej 30 s; bez odpowiedzi głowicy dongle anuluje zmianę po ok. 60 s)… Wynik pojawi się tutaj.", "mid");
+    } else if ((m = l.match(/^Glowica: moc (\S+) - lacze dziala(?: \(glowica (-?\d+), dongle (-?\d+) dBm\))?, zapisana/))) {
+      T.pwrEdited = false;
+      setPwrMsg("Moc " + pwrTxt(m[1]) + " zapisana — łącze działa" + (m[2] ? " (sygnał: u głowicy " + m[2] + " dBm, u dongla " + m[3] + " dBm)" : "") + ".", "ok");
+      if (!T.monActive) send("moc", false);
+    } else if ((m = l.match(/^Glowica: moc (\S+) - ZA SLABY SYGNAL(?: \(glowica (-?\d+), dongle (-?\d+) dBm, wymagane >= (-?\d+)\))?, przywrocono (\S+)/))) {
+      T.pwrEdited = false;
+      setPwrMsg("Przy mocy " + pwrTxt(m[1]) + " sygnał jest za słaby" + (m[2] ? " (u głowicy " + m[2] + " dBm, u dongla " + m[3] + " dBm, wymagane co najmniej " + m[4] + " dBm)" : "") + " — przywrócono moc " + pwrTxt(m[5]) + ". Wybierz wyższą moc albo przybliż dongle.", "bad");
+      if (!T.monActive) send("moc", false);
+    } else if ((m = l.match(/^Glowica: moc (\S+) - BRAK LACZA, przywrocono (\S+)/))) {
+      T.pwrEdited = false;
+      setPwrMsg("Przy mocy " + pwrTxt(m[1]) + " nie było łącza — przywrócono moc " + pwrTxt(m[2]) + ".", "bad");
+      if (!T.monActive) send("moc", false);
+    } else if (/^Glowica: moc .+ - NIE USTAWIONA/.test(l)) {
+      T.pwrEdited = false;
+      setPwrMsg("Głowica nie mogła ustawić tej mocy (błąd sterownika radia) — została poprzednia.", "bad");
+      if (!T.monActive) send("moc", false);
+    } else if (/^Glowica: moc .+ - NIE ZMIENIONA/.test(l)) {
+      T.pwrEdited = false;
+      setPwrMsg("Głowica nie zmieniła mocy — spróbuj jeszcze raz.", "mid");
+      if (!T.monActive) send("moc", false);
+    } else if (/^Glowica ma starszy firmware \(bez wyboru mocy\)/.test(l)) {
+      setPwrMsg("Głowica ma starszy firmware bez wyboru mocy — wgraj RAZEM głowicę i dongle (zakładka Instalacja).", "mid");
+    } else if (/^Moc: brak lacza z glowica/.test(l)) {
+      setPwrMsg("Brak łącza z głowicą — obudź ją (przycisk ok. 1 s, zielona) i zapisz moc jeszcze raz. Zmiana mocy działa tylko przy łączu.", "mid");
+    } else if (/^Glowica nie odpowiedziala na zmiane mocy/.test(l)) {
+      T.pwrEdited = false;
+      setPwrMsg("Głowica nie odpowiedziała — zmiana mocy ANULOWANA. Obudź głowicę (przycisk ok. 1 s, zielona) i zapisz moc jeszcze raz.", "mid");
+      if (!T.monActive) send("moc", false);
+    } else if (/^Zla moc "/.test(l)) {
+      setPwrMsg("Dongle nie przyjął ustawienia mocy.", "mid");
+    } else if (/^Moc: trwa parowanie/.test(l)) {
+      setPwrMsg("Trwa parowanie — poczekaj na jego koniec i zapisz moc jeszcze raz.", "mid");
+    } else if (/^Glowica uruchomila sie od nowa w trakcie zmiany mocy/.test(l)) {
+      T.pwrEdited = false;
+      setPwrMsg("Głowica uruchomiła się od nowa w trakcie zmiany mocy (np. słaby akumulator) — zmiana ANULOWANA. Sprawdź zasilanie głowicy i zapisz jeszcze raz.", "bad");
+      if (!T.monActive) send("moc", false);
+    }
+    if ((m = l.match(/^Glowica: czas czuwania (.+) - zapisany/))) {
+      T.sleepPending = null;
+      setSleepMsg("Głowica zapisała czas czuwania: " + m[1] + ".", "ok");
+      if (!T.monActive) send("czuwanie", false);   // kafelek z nowym ustawieniem
+    } else if (/^Glowica nie potwierdzila czasu czuwania/.test(l)) {
+      setSleepMsg("Głowica nie odpowiada (śpi albo jest poza zasięgiem). Ustawienie dojdzie, gdy ją obudzisz: przytrzymaj przycisk głowicy ok. 1 s — potwierdzenie pojawi się tutaj.", "mid");
+    } else if (/^Glowica ma starszy firmware \(bez usypiania\)/.test(l)) {
+      T.sleepPending = null;
+      setSleepMsg("Głowica ma starszy firmware bez usypiania — wgraj RAZEM głowicę i dongle (zakładka Instalacja).", "mid");
+    } else if (/^Zly czas "/.test(l)) {
+      setSleepMsg("Dongle nie przyjął czasu czuwania (dozwolone od 20 s do 30 min albo „nigdy”).", "mid");
+    }
+    if ((m = l.match(/^Glowica (\S+): bateria (\d+)\.(\d+) V \(~(\d+)%\)( KRYTYCZNA)?/))) {
+      const v = m[2] + "," + m[3] + " V";
+      const pct = +m[4];
+      const crit = !!m[5];
+      tile("st-bat", "~" + pct + "%", v + (crit ? " — KRYTYCZNA, naładuj" : "") +
+           " · odświeżono " + new Date().toLocaleTimeString("pl-PL") + " (głowica mierzy baterię co ok. 30 s)",
+           crit || pct < 10 ? "bad" : pct < 30 ? "mid" : "ok", pct);
+    } else if (/^Glowica \S+: bateria: brak pomiaru/.test(l)) {
+      tile("st-bat", "brak pomiaru", "brak ważnego pomiaru baterii (np. zasilanie z USB, brak dzielnika albo chwilowy błąd odczytu; nowy pomiar najpóźniej za ok. 30 s)", "", null);
+    } else if ((m = l.match(/^Glowica (\S+): (brak statusu|inna wersja firmware)/))) {
+      T.headStale = false;   // bez statusu nie ma czego oznaczać jako nieaktualne
+      tile("st-bat", "—", m[2] === "brak statusu" ? "brak danych z głowicy" : "inna wersja firmware głowicy", "mid", null);
+      tile("st-temp", "—", "brak danych z głowicy");
+      tile("st-sleep", "—", "brak danych z głowicy");
+      $("pwr-cur").textContent = "Obecnie: — (brak danych z głowicy)";
+    }
+    // Status głowicy starszy niż kilka s (łącze zerwane) - dane baterii nieaktualne.
+    if (/status sprzed /.test(l)) T.headStale = /\(NIEAKTUALNY\)/.test(l);
+    if (/status sprzed .*\(NIEAKTUALNY\)/.test(l)) {
+      const el = $("st-bat");
+      el.className = "tile mid";
+      el.querySelector(".s").textContent += " (nieaktualne — brak łącza)";
+    }
+    // Temperatura: linia "Temperatura: dongle ..., glowica ..." (stat, temp)
+    // albo "  temperatura N C, ..." pod stanem głowicy (bat, stat).
+    if (/^Temperatura: dongle /.test(l)) {
+      const dm = l.match(/^Temperatura: dongle (-?\d+) C/);
+      const dongle = dm ? "dongle " + dm[1] + " °C" : "dongle: brak pomiaru";
+      const hm = l.match(/glowica (-?\d+) C(?: \(min (-?\d+), max (-?\d+)\))?/);
+      if (hm) {
+        const c = +hm[1];
+        const stale = /NIEAKTUALNA/.test(l);
+        let sub = (hm[2] != null ? "min " + hm[2] + ", max " + hm[3] + " °C; " : "") + dongle;
+        if (stale) sub += " (nieaktualne — brak łącza)";
+        tile("st-temp", c + " °C", sub, stale ? "mid" : tempKind(c));
+      } else if (/glowica starszy firmware/.test(l)) {
+        tile("st-temp", "—", "głowica ma starszy firmware — zaktualizuj; " + dongle, "mid");
+      } else if (/glowica brak pomiaru/.test(l)) {
+        tile("st-temp", "brak pomiaru", dongle);
+      } else {
+        tile("st-temp", "—", (T.paired === false ? "brak pary; " : "brak danych z głowicy; ") + dongle);
+      }
+    } else if ((m = l.match(/^temperatura (-?\d+) C,/))) {
+      const c = +m[1];
+      tile("st-temp", c + " °C", "głowica" + (T.headStale ? " (nieaktualne — brak łącza)" : ""),
+           T.headStale ? "mid" : tempKind(c));
+    } else if (/^temperatura: brak pomiaru/.test(l)) {
+      tile("st-temp", "brak pomiaru", "czujnik głowicy nie odpowiada");
+    } else if (/^\(starszy firmware glowicy - bez temperatury/.test(l)) {
+      tile("st-temp", "—", "głowica ma starszy firmware — zaktualizuj", "mid");
+    }
+    if ((m = l.match(/^RSSI (-?\d+) dBm/))) {
+      const d = +m[1];
+      tile("st-rssi", d + " dBm", rssiText(d), rssiKind(d), (d + 100) * 100 / 60);
+    } else if (/^RSSI: brak ramek/.test(l)) {
+      if (/glowica spi/.test(l)) tile("st-rssi", "brak", "głowica śpi", "mid", 0);
+      else if (/lacze OK/.test(l)) tile("st-rssi", "—", "chwilowo brak ramek (łącze działa) — sprawdź jeszcze raz", "mid", 0);
+      else tile("st-rssi", "brak", "nic nie dochodzi od głowicy (śpi, wyłączona lub za daleko)", "mid", 0);
+    }
+    if ((m = l.match(/^Dongle:\s+(\S+)/)) || (m = l.match(/^Dongle (\S+), praca/))) { ver.dongle = m[1]; showVer(); }
+    if ((m = l.match(/^Glowica: (\S+)/)) && !/^Glowica: (brak|starszy|nowszy|czas czuwania|moc)\b/.test(l)) { ver.head = m[1]; showVer(); }
+    if (/^Glowica: starszy firmware/.test(l)) { ver.head = "starsza"; ver.match = "RÓŻNE — wgraj oba"; showVer(); }
+    if (/^Glowica: brak pary/.test(l)) { ver.head = "—"; ver.match = ""; showVer(); }
+    if (/^Glowica: brak statusu/.test(l)) { ver.head = "?"; ver.match = ""; showVer(); }
+    // Przy innej wersji protokołu ta linia w stat to stary status głowicy - nie zdejmuje "RÓŻNE".
+    if ((m = l.match(/^\s*firmware (\S+),/)) && m[1] !== "starszy" && !T.protoBad) {
+      if (m[1] !== ver.head) ver.match = "";   // inna głowica - "zgodne" dotyczyło poprzedniej
+      ver.head = m[1]; showVer();
+    }
+    if (/^Wersje zgodne/.test(l)) { ver.match = "zgodne"; showVer(); }
+    if (/^UWAGA: wersje rozne/.test(l)) { ver.match = "RÓŻNE — wgraj oba"; showVer(); }
+    if (/^Wersja nieznana/.test(l)) { ver.match = "nie da się porównać (build bez git)"; showVer(); }
+    if ((m = l.match(/^Nieznana komenda "(.*)"/))) {
+      if (/^kanal\b/.test(m[1] || "")) {
+        setMsg("Dongle nie zna komendy „" + m[1] + "” — ma firmware sprzed zmiany kanałów. Zaktualizuj oba urządzenia w zakładce Instalacja.", "mid");
+      } else if (/^(czuwanie|moc)\b/.test(m[1] || "")) {
+        // Ustawienia głowicy - komunikat w ich panelu (tam czeka "Wysyłanie…").
+        (/^moc/.test(m[1]) ? setPwrMsg : setSleepMsg)("Dongle nie zna komendy „" + m[1] + "” — ma starszy firmware. Zaktualizuj oba urządzenia w zakładce Instalacja.", "mid");
+      } else if (T.lastCmd.fromButton) {
+        setMsg("Dongle nie zna komendy „" + m[1] + "” — ma starszy firmware. Zaktualizuj oba urządzenia w zakładce Instalacja.", "mid");
+      } else {
+        setMsg("Dongle nie zna komendy „" + m[1] + "”. Sprawdź pisownię — listę pokazuje przycisk „Lista komend”.", "mid");
+      }
+      // Tylko gdy nieznana była sama komenda "para" (literówka w innej komendzie
+      // w trakcie parowania nie kończy kreatora).
+      if (pairActive && /^para$/i.test((m[1] || "").trim())) {
+        pairResult("brak trybu parowania w tym firmware (zaktualizuj dongle)");
+      }
+    }
+    // Odpowiedzi na "kanal ..." (firmware od 2026-11-18).
+    if ((m = l.match(/^Kanal (\d+) ustawiony dla NASTEPNEGO parowania \(teraz (\d+)\)/))) {
+      setChanMsg("Kanał " + m[1] + " wybrany na następne parowanie (teraz " + m[2] + "). Połóż urządzenia obok siebie i kliknij „Sparuj z głowicą” — po sparowaniu oba przejdą na kanał " + m[1] + ". Do tego czasu łącze zostaje na kanale " + m[2] + ".", "ok");
+      $("chan-pair").hidden = false;
+    } else if ((m = l.match(/^Kanal (\d+) jest juz kanalem/))) {
+      $("chan-pair").hidden = true;
+      setChanMsg("Kanał " + m[1] + " jest już kanałem pary — bez zmian (ewentualny wcześniejszy wybór anulowany).", "ok");
+    } else if (/^Zly kanal /.test(l)) {
+      setChanMsg("Dongle odrzucił kanał — dozwolone 1–13.", "bad");
+    } else if ((m = l.match(/^Kanal radiowy pary: (\d+)/))) {
+      $("chan-cur").textContent = "Obecnie: kanał " + m[1];
+    } else if ((m = l.match(/^\s*(\d+): .*<- zalecany/))) {
+      chanSel.value = m[1];
+      setChanMsg("Skan zakończony — zalecany kanał " + m[1] + " (zajętość kanałów w terminalu poniżej). Kliknij „Ustaw na następne parowanie”, potem sparuj.", "ok");
+    } else if (/^Obecny kanal \d+ jest dobry/.test(l)) {
+      setChanMsg("Obecny kanał jest dobry — zmiana niepotrzebna.", "ok");
+    } else if (/^(Port danych jest otwarty|Port danych byl uzywany|Trwa zmiana mocy - skan|Trwa parowanie - skan|Skan nieudany)/.test(l)) {
+      // Dongle odmówił skanu (port danych w użyciu, zmiana mocy, parowanie) - bez tego komunikat "Skanowanie…" wisiał na stałe.
+      setChanMsg("Skan nie został wykonany — szczegóły w terminalu poniżej (np. zamknij program odczytowy, poczekaj na koniec zmiany mocy albo parowania) i powtórz.", "mid");
+    }
+    if ((m = l.match(/^Parowanie: (.*)$/))) pairResult(m[1]);
+  }
+
+  function feed(text) {
+    termAppend(text);
+    for (const ch of text) {
+      if (ch === "\n") { parseLine(T.line); T.line = ""; }
+      else if (ch !== "\r") T.line += ch;
+    }
+    if (T.line.length > 2000) T.line = "";
+  }
+
+  // --- wysyłanie (kolejno). Tylko do sesji zweryfikowanej powitaniem - także
+  // gdy zapis czekał w kolejce, a w tym czasie zmieniło się połączenie.
+  function write(str) {
+    const sess = T.sess;
+    T.writeChain = T.writeChain.then(async () => {
+      if (!sess || T.sess !== sess || !sess.verified || sess.closing || !sess.port.writable) return;
+      const w = sess.port.writable.getWriter();
+      try { await w.write(enc.encode(str)); } finally { w.releaseLock(); }
+    }).catch((e) => sysErr("Błąd wysyłania: " + e.message));
+    return T.writeChain;
+  }
+  async function send(cmd, fromButton = true) {
+    if (!T.verified) return;
+    if (T.monActive) await stopMon();
+    // Dongle zamienia komendy na małe litery - "MON" też włącza śledzenie.
+    if (cmd.trim().toLowerCase() === "mon") setMon(true);
+    T.lastCmd = { text: cmd, fromButton };
+    await write(cmd + "\r");
+  }
+  async function stopMon() {
+    if (!T.monActive) return;
+    setMon(false);
+    await write(" ");             // dowolny znak kończy mon
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  function setMon(on) {
+    T.monActive = on;
+    $("mon-label").textContent = on ? "Zatrzymaj śledzenie sygnału" : "Śledź sygnał na żywo";
+  }
+
+  // --- połączenie
+  async function readLoop(sess) {
+    const dec = new TextDecoder();
+    while (sess.port.readable && !sess.closing) {
+      let reader;
+      try { reader = sess.port.readable.getReader(); } catch (e) { break; }
+      sess.reader = reader;
+      try {
+        for (;;) {
+          const { value, done } = await reader.read();
+          if (done || sess.closing || T.sess !== sess) break;
+          sess.readErrors = 0;   // licznik błędów z rzędu
+          const text = dec.decode(value, { stream: true });
+          if (sess.verified) feed(text);
+          else sess.pre += text;     // tylko ta sesja - nie pokazujemy, dopóki nie wiadomo, co to za port
+        }
+      } catch (e) {
+        if (sess.closing || T.sess !== sess) break;
+        // Błąd strumienia (np. przepełnienie bufora, błąd ramki) - port dalej
+        // działa i daje nowy strumień: czytamy dalej. Przy odłączeniu readable = null.
+        sess.readErrors = (sess.readErrors || 0) + 1;
+        // NetworkError = urządzenie odłączone (zdarzenie disconnect może przyjść później).
+        const fatal = e.name === "NetworkError" || !sess.port.readable || sess.readErrors > 20;
+        sysErr("Błąd odczytu z portu: " + e.message + (fatal ? "" : " — odczyt wznowiony"));
+        if (fatal) {
+          // Bez odczytu sesja nie może dalej udawać "Połączono". Zwykle wcześniej
+          // przyjdzie zdarzenie disconnect (odłączenie) - wtedy T.sess jest już inne.
+          setTimeout(() => { if (T.sess === sess) disconnect("Odczyt z portu przerwany — połącz ponownie."); }, 300);
+          break;
+        }
+        await new Promise((r) => setTimeout(r, 200));
+        continue;
+      } finally {
+        try { reader.releaseLock(); } catch (e) {}
+      }
+      if (T.sess !== sess) break;
+    }
+  }
+
+  async function closeSession(sess) {
+    sess.closing = true;
+    sess.verified = false;
+    try { if (sess.reader) await sess.reader.cancel(); } catch (e) {}
+    try { await sess.port.close(); } catch (e) {}
+  }
+
+  async function connect() {
+    if (!("serial" in navigator)) {
+      setMsg("Ta przeglądarka nie obsługuje portów szeregowych. Otwórz stronę w Google Chrome albo Microsoft Edge na komputerze.", "bad");
+      return;
+    }
+    // Jedno łączenie naraz (drugie kliknięcie w trakcie nic nie robi).
+    if (T.connecting || T.closingPort || T.port) return;
+    T.connecting = true;
+    setEnabled(false);
+    try {
+      await connectInner();
+    } finally {
+      T.connecting = false;
+      setEnabled(T.verified);
+    }
+  }
+
+  async function connectInner() {
+    let port;
+    try {
+      port = await navigator.serial.requestPort({ filters: DONGLE_FILTERS });
+    } catch (e) {
+      setMsg("Nie wybrano portu. Jeśli na liście nie ma „Optoglowica”, sprawdź, czy dongle jest podłączony i ma wgrany firmware.", "mid");
+      return;
+    }
+    setMsg("");
+    setPill("Łączenie…", "mid");
+    try {
+      // Web Serial wymaga prędkości; port diag ją pomija (byle nie 1234).
+      // Na porcie danych ustawi to głowicy 115200 8N1, ale program odczytowy
+      // i tak ustawia swoje parametry przy otwarciu - do licznika nic nie idzie.
+      // Większy bufor odbioru (domyślnie 255 B): długi wydruk stat/log nie przepełni go,
+      // gdy strona chwilę nie czyta.
+      await port.open({ baudRate: BAUD, bufferSize: 16384 });
+    } catch (e) {
+      setPill("Nie połączono", "bad");
+      setMsg("Nie udało się otworzyć portu — prawdopodobnie używa go inny program (program odczytowy licznika albo PuTTY). Jeśli wybrano port danych („… - Optoglowica”), kliknij Połącz jeszcze raz i wybierz port „Optoglowica diag”; jeśli to był port „diag”, zamknij terminal (np. PuTTY), który go używa. (" + e.message + ")", "bad");
+      return;
+    }
+    const sess = { port, pre: "", closing: false, reader: null, verified: false };
+    T.sess = sess; T.port = port; T.verified = false; T.line = "";
+    resetTiles();
+    readLoop(sess);
+    // Zbocze DTR = nowa sesja terminala: dongle wysyła powitanie.
+    try {
+      await port.setSignals({ dataTerminalReady: false, requestToSend: false });
+      await new Promise((r) => setTimeout(r, 60));
+      await port.setSignals({ dataTerminalReady: true, requestToSend: true });
+    } catch (e) {}
+    const t0 = Date.now();
+    while (Date.now() - t0 < GREETING_WAIT_MS && !sess.pre.includes(GREETING) && T.sess === sess) {
+      await new Promise((r) => setTimeout(r, 50));
+    }
+    if (T.sess !== sess) {                 // odłączony w trakcie
+      await closeSession(sess);
+      return;
+    }
+    if (!sess.pre.includes(GREETING)) {
+      await disconnect();
+      setPill("Nie połączono", "bad");
+      setMsg("To nie jest port diagnostyczny (najpewniej port danych dla programu odczytowego) — nic do niego nie wysłano. Kliknij „Połącz z donglem” jeszcze raz i wybierz port z nazwą „Optoglowica diag”. Jeśli dongle ma tylko jeden port, ma starszy firmware — zaktualizuj go w zakładce Instalacja.", "bad");
+      return;
+    }
+    sess.verified = true;
+    T.verified = true;
+    setPill("Połączono z donglem", "ok");
+    setMsg("");
+    setEnabled(true);
+    sys("Połączono z portem diagnostycznym dongla");
+    const at = sess.pre.lastIndexOf("\r\nOptoglowica");
+    feed(sess.pre.slice(at >= 0 ? at : 0));
+    sess.pre = "";
+    // Od razu pełny stan i wersje.
+    await send("stat");
+    await new Promise((r) => setTimeout(r, 400));
+    await send("wersja");
+  }
+
+  // Rozłączenie w trakcie zmiany ustawień: wyniku już nie będzie (dongle wypisuje
+  // go tylko do otwartego terminala) - nie zostawiać "Wysyłanie… / wynik pojawi się tutaj".
+  function settingsAbort() {
+    for (const id of ["sleep-msg", "pwr-msg", "chan-msg"]) {
+      if (/Wysyłanie|Skanowanie|sprawdza|sprawdzają|pojawi się tutaj/.test($(id).textContent)) {
+        setBoxMsg(id, "Połączenie z donglem przerwane — wyniku zmiany nie widać. Po ponownym połączeniu sprawdź aktualny stan (pole „Obecnie” / kafelek).", "mid");
+      }
+    }
+  }
+
+  // Bez połączenia nie pokazujemy starego stanu ani potwierdzenia "Usuń parę".
+  function offlineView() {
+    resetTiles(true);
+    $("unpair-confirm").classList.remove("show");
+  }
+
+  async function disconnect(note) {
+    const sess = T.sess;
+    if (!sess) return;
+    settingsAbort();
+    if (sess.verified && T.monActive) { try { await stopMon(); } catch (e) {} }
+    T.sess = null; T.port = null; T.verified = false;
+    $("chan-pair").hidden = true;
+    // Do zamknięcia portu "Połącz" wyłączone (inaczej szybkie ponowne
+    // połączenie z tym samym portem dawało "port zajęty").
+    T.closingPort = true;
+    setEnabled(false);
+    try {
+      // Najwyżej 1 s na zaległy zapis - zawieszony zapis nie może zablokować "Połącz".
+      await Promise.race([T.writeChain.catch(() => {}), new Promise((r) => setTimeout(r, 1000))]);
+      await closeSession(sess);
+    } finally {
+      T.closingPort = false;
+    }
+    setMon(false);
+    pairStop(true);
+    offlineView();
+    setEnabled(false);
+    setPill("Nie połączono", "");
+    if (note) sys(note);
+  }
+
+  if ("serial" in navigator) {
+    navigator.serial.addEventListener("disconnect", (ev) => {
+      if (T.sess && ev.target === T.sess.port) {
+        const gone = T.sess;
+        T.sess = null; T.port = null; T.verified = false;
+        $("chan-pair").hidden = true;
+        closeSession(gone).catch(() => {});   // zamknięcie obiektu portu (bez czekania)
+        settingsAbort();
+        setMon(false); pairStop(true); offlineView(); setEnabled(false);
+        setPill("Rozłączono", "bad");
+        setMsg("Dongle został odłączony od komputera. Podłącz go i kliknij „Połącz z donglem”.", "mid");
+        sysErr("Dongle odłączony");
+      }
+    });
+  } else {
+    $("t-connect").disabled = true;
+    setMsg("Ta przeglądarka nie obsługuje portów szeregowych. Otwórz stronę w Google Chrome albo Microsoft Edge na komputerze.", "bad");
+  }
+
+  $("t-connect").addEventListener("click", () => connect().catch((e) => {
+    setPill("Nie połączono", "bad");
+    setMsg("Błąd połączenia: " + e.message, "bad");
+  }));
+  $("t-disconnect").addEventListener("click", () => disconnect("Rozłączono"));
+  $("t-refresh").addEventListener("click", () => send("stat"));
+
+  document.querySelectorAll(".cmd[data-cmd]").forEach((b) => b.addEventListener("click", () => send(b.dataset.cmd)));
+  // Moc: komenda "moc max|sred|nisk|min"; próba i pomiar w urządzeniach, wynik z odpowiedzi dongla.
+  $("pwr-save").addEventListener("click", () => {
+    if (T.paired === false) {
+      setPwrMsg("Najpierw sparuj głowicę z donglem — moc ustawia się w głowicy i donglu.", "mid");
+      return;
+    }
+    T.pwrEdited = false;
+    setPwrMsg("Wysyłanie ustawienia mocy…", "mid");
+    send("moc " + pwrSel.value);
+  });
+  // Kanał radiowy: komendy "kanal <1-13>", "kanal skan", "kanal auto"; zmiana wchodzi przy następnym parowaniu.
+  $("chan-save").addEventListener("click", () => { setChanMsg("Wysyłanie wyboru kanału…", "mid"); send("kanal " + chanSel.value); });
+  $("chan-pair").addEventListener("click", () => {
+    $("chan-pair").hidden = true;
+    pairStart();
+    $("pair-box").scrollIntoView({ block: "center", behavior: "smooth" });
+  });
+  $("chan-scan").addEventListener("click", () => { setChanMsg("Skanowanie kanałów Wi-Fi (ok. 2 s, łącze przerwane na ten czas)…", "mid"); send("kanal skan"); });
+  $("chan-auto").addEventListener("click", () => { setChanMsg("Skanowanie kanałów Wi-Fi (ok. 2 s, łącze przerwane na ten czas)…", "mid"); send("kanal auto"); });
+  // Czas czuwania: komenda "czuwanie <s>", wynik (zapisany / czeka na głowicę) z odpowiedzi dongla.
+  $("sleep-save").addEventListener("click", () => {
+    if (T.paired === false) {
+      setSleepMsg("Najpierw sparuj głowicę z donglem — czas czuwania zapisuje się w głowicy.", "mid");
+      return;
+    }
+    const s = +sleepSel.value;
+    T.sleepEdited = false;
+    setSleepMsg(s ? "Wysyłanie czasu czuwania do głowicy…" : "Wysyłanie ustawienia „nie usypiaj” do głowicy…", "mid");
+    send("czuwanie " + (s ? s : "nigdy"));
+  });
+  document.querySelector('.cmd[data-act="mon"]').addEventListener("click", () => (T.monActive ? stopMon() : send("mon")));
+
+  // --- usuwanie pary (potwierdzenie na stronie, bez okienek przeglądarki)
+  document.querySelector('.cmd[data-act="unpair"]').addEventListener("click", () => $("unpair-confirm").classList.add("show"));
+  $("unpair-no").addEventListener("click", () => $("unpair-confirm").classList.remove("show"));
+  $("unpair-yes").addEventListener("click", async () => {
+    $("unpair-confirm").classList.remove("show");
+    await send("para usun");
+    setTimeout(() => send("stat"), 500);
+  });
+
+  // --- kreator parowania
+  let pairTimer = null, pairLeft = 0, pairActive = false;
+  let pairLateTimer = null;
+  function pairStop(silent) {
+    clearInterval(pairTimer); pairTimer = null; pairActive = false;
+    clearTimeout(pairLateTimer); pairLateTimer = null;
+    if (silent) $("pair-box").classList.remove("show");
+  }
+  async function pairStart() {
+    if (!T.verified) return;   // bez połączonego donglem komenda "para" nie zostałaby wysłana
+    $("unpair-confirm").classList.remove("show");
+    const box = $("pair-box");
+    box.classList.add("show");
+    box.style.borderColor = "";
+    $("pair-title").textContent = "Parowanie — tryb parowania włączony";
+    $("pair-steps").hidden = false;
+    $("pair-warn").hidden = false;
+    $("pair-cancel").hidden = false;
+    $("pair-close").hidden = true;
+    pairLeft = 30; pairActive = true;
+    $("pair-count-desc").hidden = false;
+    $("pair-count").textContent = pairLeft;
+    clearInterval(pairTimer);
+    clearTimeout(pairLateTimer); pairLateTimer = null;   // timer poprzedniego parowania
+    pairTimer = setInterval(() => {
+      pairLeft = Math.max(0, pairLeft - 1);
+      $("pair-count").textContent = pairLeft;
+      // Dongle zgłasza wynik sam po 30 s; gdy nie przyszedł (stary firmware,
+      // zgubiona odpowiedź) - nie zostawiamy kreatora na "0".
+      if (pairLeft === 0 && pairActive) {
+        clearInterval(pairTimer);
+        clearTimeout(pairLateTimer);
+        pairLateTimer = setTimeout(() => {
+          pairLateTimer = null;
+          if (pairActive) pairResult("brak wyniku od dongla");
+        }, 6000);
+      }
+    }, 1000);
+    box.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    await send("para");
+  }
+  function pairResult(text) {
+    if (/tryb parowania/.test(text)) return;       // początek - już pokazany
+    if (!pairActive && !$("pair-box").classList.contains("show")) {
+      // Wynik parowania przyciskami (bez kreatora) - też pokaż.
+      $("pair-box").classList.add("show");
+    }
+    pairStop(false);
+    $("pair-steps").hidden = true;
+    $("pair-warn").hidden = true;
+    $("pair-cancel").hidden = true;
+    $("pair-close").hidden = false;
+    const ok = /^SPAROWANO/.test(text);
+    $("pair-box").style.borderColor = ok ? "var(--ok)" : "var(--bad)";
+    $("pair-count").textContent = ok ? "✓" : "✗";
+    $("pair-count-desc").hidden = true;
+    let msg;
+    if (ok) msg = "Sparowano! Dioda głowicy świeci 2 s na zielono.";
+    else if (/nikt nie odpowiedzial/.test(text)) msg = "Głowica nie odpowiedziała w 30 s. Połóż ją obok dongla i spróbuj ponownie — przytrzymaj przycisk głowicy, aż dioda zaświeci na niebiesko (ok. 3 s; zielona po 1 s = tylko obudzenie — trzymaj dalej), i puść. Jeśli nadal się nie udaje, sprawdź, czy oba urządzenia mają ten sam firmware (zakładka Instalacja).";
+    else if (/dwa urzadzenia/.test(text)) msg = "W pobliżu parowało się drugie urządzenie. Odsuń je i spróbuj ponownie.";
+    else if (/przerwane/.test(text)) msg = "Parowanie przerwane.";
+    else if (/brak wyniku/.test(text)) msg = "Dongle nie podał wyniku parowania. Sprawdź kafelek „Para” (odświeżany za chwilę); jeśli nadal brak pary, spróbuj ponownie.";
+    else if (/brak trybu parowania/.test(text)) msg = "Ten dongle nie zna komendy parowania — ma starszy firmware. Zaktualizuj oba urządzenia w zakładce Instalacja.";
+    else msg = "Parowanie nieudane: " + text + ". Spróbuj ponownie.";
+    $("pair-title").textContent = msg;
+    // Nie w trakcie "Śledź sygnał na żywo" - send() wyłączyłby śledzenie bez słowa.
+    // Po SPAROWANO stat wysyła i tak timer 4 s (łącze na nowym kanale wraca później).
+    if (!ok) setTimeout(() => { if (!T.monActive) send("stat"); }, 600);
+  }
+  document.querySelector('.cmd[data-act="pair"]').addEventListener("click", pairStart);
+  $("pair-cancel").addEventListener("click", () => send("para stop"));
+  $("pair-close").addEventListener("click", () => $("pair-box").classList.remove("show"));
+
+  // --- ręczna komenda + historia
+  function sendInput() {
+    const v = inputEl.value.trim();
+    if (!v) return;
+    if (v.toLowerCase().startsWith("para") && /^para\s*$/i.test(v)) { inputEl.value = ""; pairStart(); return; }
+    T.history.push(v); if (T.history.length > 50) T.history.shift();
+    T.histPos = T.history.length;
+    inputEl.value = "";
+    send(v, false);
+  }
+  $("t-send").addEventListener("click", sendInput);
+  inputEl.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") { e.preventDefault(); sendInput(); }
+    else if (e.key === "ArrowUp" && T.history.length) {
+      e.preventDefault(); T.histPos = Math.max(0, T.histPos - 1); inputEl.value = T.history[T.histPos] || "";
+    } else if (e.key === "ArrowDown" && T.history.length) {
+      e.preventDefault(); T.histPos = Math.min(T.history.length, T.histPos + 1); inputEl.value = T.history[T.histPos] || "";
+    }
+  });
+
+  // --- narzędzia okna terminala
+  $("t-clear").addEventListener("click", () => { termEl.textContent = ""; });
+  $("t-copy").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText(termEl.textContent);
+      setMsg("Skopiowano zawartość terminala do schowka.", "ok");
+    } catch (e) {
+      setMsg("Nie udało się skopiować — zaznacz tekst w terminalu i naciśnij Ctrl+C.", "mid");
+    }
+    setTimeout(() => { if ($("t-msg").textContent.startsWith("Skopiowano")) setMsg(""); }, 3000);
+  });
+  $("t-save").addEventListener("click", () => {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    const name = "optoglowica-log-" + d.getFullYear() + pad(d.getMonth() + 1) + pad(d.getDate()) + "-" + pad(d.getHours()) + pad(d.getMinutes()) + ".txt";
+    const blob = new Blob([termEl.textContent], { type: "text/plain;charset=utf-8" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+  });
+
+  window.addEventListener("beforeunload", () => { if (T.port) T.port.close().catch(() => {}); });
+  resetTiles();
+  setEnabled(false);
+</script>
+</body>
+</html>
